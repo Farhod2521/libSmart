@@ -1,4 +1,9 @@
 import random
+import base64
+import io
+import json
+from PIL import Image
+import face_recognition
 from rest_framework import serializers
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
@@ -15,50 +20,64 @@ class RegisterSerializer(serializers.ModelSerializer):
     education = serializers.CharField()
     occupation = serializers.CharField()
     interests = serializers.CharField(required=False, allow_blank=True)
-    
 
-    # 🔹 Yuz rasmi (faqat saqlash uchun, solishtirish yo‘q)
-    image = serializers.ImageField(write_only=True)
+    # 🔹 Yuz rasmi (base64 formatda yuboriladi)
+    image_base64 = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
         fields = [
             'phone', 'password', 'full_name', 'email',
             'birth_date', 'gender', 'language', 'region', 'education',
-            'occupation', 'interests',  'image'
+            'occupation', 'interests', 'image_base64'
         ]
         extra_kwargs = {
             'password': {'write_only': True},
         }
 
     def create(self, validated_data):
-        # Customerga tegishli ma'lumotlarni ajratamiz
+        # Customer ma'lumotlarini ajratib olamiz
         customer_data = {
             key: validated_data.pop(key)
             for key in [
                 'birth_date', 'gender', 'language', 'region',
-                'education', 'occupation', 'interests', 
+                'education', 'occupation', 'interests',
             ]
         }
 
-        image_file = validated_data.pop('image')  # 🔹 faqat saqlanadi
+        image_base64 = validated_data.pop('image_base64')
         password = validated_data.pop('password')
         verification_code = str(random.randint(10000, 99999))
 
+        # ✅ Rasmni base64 dan ochish
+        try:
+            image_bytes = base64.b64decode(image_base64)
+            image_file = io.BytesIO(image_bytes)
+            image_np = face_recognition.load_image_file(image_file)
+            encodings = face_recognition.face_encodings(image_np)
+        except Exception:
+            raise serializers.ValidationError("Yuz rasmi noto‘g‘ri formatda yoki o‘qib bo‘lmadi.")
+
+        if not encodings:
+            raise serializers.ValidationError("Yuz aniqlanmadi.")
+
+        face_encoding = json.dumps(encodings[0].tolist())  # JSON formatga aylantiramiz
+
+        # ✅ Foydalanuvchini yaratish
         user = User.objects.create_user(**validated_data)
         user.set_password(password)
         user.role = 'customer'
         user.sms_code = verification_code
         user.save()
 
-        # Customer profili yaratish
+        # ✅ Customer profilini yaratish
         Customer.objects.create(
             user=user,
-            face_image=image_file,
+            face_encoding=face_encoding,
             **customer_data
         )
 
-        # Email orqali tasdiqlash kodi yuborish
+        # ✅ Email orqali kod yuborish
         subject = '📩 Ro‘yxatdan o‘tish uchun tasdiqlash kodi'
         from_email = settings.DEFAULT_FROM_EMAIL
         to = [user.email]
@@ -79,7 +98,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         msg.send()
 
         return user
-    
 
     
 class VerifyCodeSerializer(serializers.Serializer):

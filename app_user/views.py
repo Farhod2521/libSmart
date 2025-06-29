@@ -13,10 +13,14 @@ from rest_framework.authtoken.models import Token
 from PIL import Image
 import numpy as np
 import io 
-from .models import  User
+from .models import  User, Customer
 from rest_framework_simplejwt.tokens import RefreshToken
 from datetime import timedelta 
+import base64
+import json
+import face_recognition
 
+from django.contrib.auth import login
 
 class RegisterAPIView(APIView):
     def post(self, request):
@@ -79,3 +83,47 @@ class LoginWithPhoneAPIView(APIView):
         )
 
 
+class FaceLoginAPIView(APIView):
+    def post(self, request):
+        image_base64 = request.data.get("image_base64")
+
+        if not image_base64:
+            return Response({"error": "Rasm yuborilmadi."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            image_bytes = base64.b64decode(image_base64)
+            image_file = io.BytesIO(image_bytes)
+            image_np = face_recognition.load_image_file(image_file)
+            unknown_encodings = face_recognition.face_encodings(image_np)
+        except Exception as e:
+            return Response({"error": "Yuz rasmni o‘qib bo‘lmadi."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not unknown_encodings:
+            return Response({"error": "Yuz aniqlanmadi."}, status=status.HTTP_400_BAD_REQUEST)
+
+        unknown_encoding = unknown_encodings[0]
+
+        # 🔍 Barcha mijozlarning encodinglarini tekshiramiz
+        customers = Customer.objects.exclude(face_encoding__isnull=True).exclude(face_encoding="")
+
+        for customer in customers:
+            try:
+                known_encoding = np.array(json.loads(customer.face_encoding))
+                match = face_recognition.compare_faces([known_encoding], unknown_encoding)[0]
+
+                if match:
+                    # ✅ Login qilish
+                    login(request, customer.user)
+                    return Response({
+                        "message": "Tizimga muvaffaqiyatli kirildi.",
+                        "user": {
+                            "id": customer.user.id,
+                            "full_name": customer.user.full_name,
+                            "phone": customer.user.phone,
+                            "email": customer.user.email,
+                        }
+                    }, status=status.HTTP_200_OK)
+            except Exception:
+                continue
+
+        return Response({"error": "Yuz hech bir foydalanuvchiga mos kelmadi."}, status=status.HTTP_401_UNAUTHORIZED)

@@ -62,9 +62,8 @@ class Customer(models.Model):
     occupation = models.CharField("Kasbi", max_length=255)
     interests = models.TextField("Qiziqishlari", blank=True)
 
-
-    # ✅ Yangi maydon: yuzning vektori (pickle formatda saqlanadi)
-    face_image = models.ImageField(upload_to="Yuz/", null=True, blank=True)
+    # ✅ Yangi maydon: yuz encoding vektori (text holatda)
+    face_encoding = models.TextField("Yuz vektori (128 float)", blank=True, null=True)
 
     def __str__(self):
         return f"{self.user.full_name} - Customer"
