@@ -3,7 +3,7 @@ from .views import (
     RegisterAPIView,
     VerifyCodeAPIView,
     PasswordResetRequestAPIView,
-    PasswordResetConfirmAPIView
+    PasswordResetConfirmAPIView, LoginWithPhoneAPIView
 )
 
 urlpatterns = [
@@ -11,5 +11,7 @@ urlpatterns = [
     path('customer/verify/', VerifyCodeAPIView.as_view()),
     path('customer/reset-password/request/', PasswordResetRequestAPIView.as_view()),
     path('customer/reset-password/confirm/', PasswordResetConfirmAPIView.as_view()),
+    path('customer/login/', LoginWithPhoneAPIView.as_view()),
+
 
 ]
