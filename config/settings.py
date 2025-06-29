@@ -100,8 +100,8 @@ REST_FRAMEWORK = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'libSmart',
-        'USER': 'libSmartuser',
+        'NAME': 'libsmart',
+        'USER': 'libsmartuser',
         'PASSWORD': 'libSmart1234',
         'HOST': 'localhost',
         'PORT': '5432',
