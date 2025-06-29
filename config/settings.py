@@ -106,7 +106,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'libSmart',
-        'USER': 'libSmartuser',
+        'USER': 'libsmartuser',
         'PASSWORD': 'libSmart1234',
         'HOST': 'localhost',
         'PORT': '5432',
