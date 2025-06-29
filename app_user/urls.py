@@ -12,7 +12,7 @@ urlpatterns = [
     path('customer/reset-password/request/', PasswordResetRequestAPIView.as_view()),
     path('customer/reset-password/confirm/', PasswordResetConfirmAPIView.as_view()),
     path('customer/login/', LoginWithPhoneAPIView.as_view()),
-    path('customer/face-login/', LoginWithPhoneAPIView.as_view()),
+    path('customer/face-login/', FaceLoginAPIView.as_view()),
 
 
 ]
