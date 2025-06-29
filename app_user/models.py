@@ -61,7 +61,7 @@ class Customer(models.Model):
     education = models.CharField("Ta’lim darajasi", max_length=50)
     occupation = models.CharField("Kasbi", max_length=255)
     interests = models.TextField("Qiziqishlari", blank=True)
-    phone_number = models.CharField("Telefon raqami", max_length=20)
+
 
     # ✅ Yangi maydon: yuzning vektori (pickle formatda saqlanadi)
     face_image = models.ImageField(upload_to="Yuz/", null=True, blank=True)

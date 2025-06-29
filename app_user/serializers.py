@@ -15,7 +15,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     education = serializers.CharField()
     occupation = serializers.CharField()
     interests = serializers.CharField(required=False, allow_blank=True)
-    phone_number = serializers.CharField()
+    
 
     # 🔹 Yuz rasmi (faqat saqlash uchun, solishtirish yo‘q)
     image = serializers.ImageField(write_only=True)
@@ -25,7 +25,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = [
             'phone', 'password', 'full_name', 'email',
             'birth_date', 'gender', 'language', 'region', 'education',
-            'occupation', 'interests', 'phone_number', 'image'
+            'occupation', 'interests',  'image'
         ]
         extra_kwargs = {
             'password': {'write_only': True},
@@ -37,7 +37,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             key: validated_data.pop(key)
             for key in [
                 'birth_date', 'gender', 'language', 'region',
-                'education', 'occupation', 'interests', 'phone_number'
+                'education', 'occupation', 'interests', 
             ]
         }
 
