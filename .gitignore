@@ -143,6 +143,16 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+static/
+staticfiles/
+media/
+*.sqlite3
+*.log
+# Django migration files except __init__.py
+**/migrations/*
+!**/migrations/__init__.py
+assets/
+collected_static/
 
 # Spyder project settings
 .spyderproject
