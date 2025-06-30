@@ -53,16 +53,14 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 class Customer(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='customer_profile', verbose_name="Foydalanuvchi")
-
     birth_date = models.DateField("Tug‘ilgan sana")
     gender = models.CharField("Jinsi", max_length=20)
     language = models.CharField("Tili", max_length=20)
+    state = models.CharField("Yashash davlat", max_length=255)
     region = models.CharField("Yashash hududi", max_length=255)
     education = models.CharField("Ta’lim darajasi", max_length=50)
     occupation = models.CharField("Kasbi", max_length=255)
     interests = models.TextField("Qiziqishlari", blank=True)
-
-    # ✅ Yangi maydon: yuz encoding vektori (text holatda)
     face_encoding = models.TextField("Yuz vektori (128 float)", blank=True, null=True)
 
     def __str__(self):

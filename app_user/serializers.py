@@ -16,6 +16,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     birth_date = serializers.DateField()
     gender = serializers.CharField()
     language = serializers.CharField()
+    state = serializers.CharField()
     region = serializers.CharField()
     education = serializers.CharField()
     occupation = serializers.CharField()
@@ -28,7 +29,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'phone', 'password', 'full_name', 'email',
-            'birth_date', 'gender', 'language', 'region', 'education',
+            'birth_date', 'gender', 'language','state', 'region', 'education',
             'occupation', 'interests', 'image_base64'
         ]
         extra_kwargs = {
@@ -40,7 +41,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         customer_data = {
             key: validated_data.pop(key)
             for key in [
-                'birth_date', 'gender', 'language', 'region',
+                'birth_date', 'gender', 'language', 'region','state', 
                 'education', 'occupation', 'interests',
             ]
         }
