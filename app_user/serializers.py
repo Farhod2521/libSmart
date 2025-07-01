@@ -9,7 +9,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 from .models import User, Customer
 from PIL import Image
-
+import re
 
 class RegisterSerializer(serializers.ModelSerializer):
     # Customer uchun qo‘shimcha maydonlar
