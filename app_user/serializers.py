@@ -22,14 +22,14 @@ class RegisterSerializer(serializers.ModelSerializer):
     occupation = serializers.CharField()
     interests = serializers.CharField(required=False, allow_blank=True)
 
-    # 🔹 Yuz rasmi (base64 formatda yuboriladi)
+    # 🔹 Yuz rasmi (base64 formatda)
     image_base64 = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
         fields = [
             'phone', 'password', 'full_name', 'email',
-            'birth_date', 'gender', 'language','state', 'region', 'education',
+            'birth_date', 'gender', 'language', 'state', 'region', 'education',
             'occupation', 'interests', 'image_base64'
         ]
         extra_kwargs = {
@@ -37,21 +37,27 @@ class RegisterSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
-        # Customer ma'lumotlarini ajratib olamiz
+        # 🎯 Customer ma'lumotlarini ajratib olamiz
         customer_data = {
             key: validated_data.pop(key)
             for key in [
-                'birth_date', 'gender', 'language', 'region','state', 
-                'education', 'occupation', 'interests',
+                'birth_date', 'gender', 'language', 'region',
+                'state', 'education', 'occupation', 'interests'
             ]
         }
 
-        image_base64 = validated_data.pop('image_base64')
+        # 🎯 Parol va rasm
         password = validated_data.pop('password')
+        image_base64 = validated_data.pop('image_base64')
         verification_code = str(random.randint(10000, 99999))
 
-        # ✅ Rasmni base64 dan ochish
+        # ✅ Base64 rasmni ochish va yuz encoding olish
         try:
+            # data:image/jpeg;base64,... bo‘lsa - tozalash
+            if "base64," in image_base64:
+                image_base64 = image_base64.split("base64,")[1]
+            image_base64 = re.sub(r'\s+', '', image_base64)
+
             image_bytes = base64.b64decode(image_base64)
             image_file = io.BytesIO(image_bytes)
             image_np = face_recognition.load_image_file(image_file)
@@ -62,23 +68,23 @@ class RegisterSerializer(serializers.ModelSerializer):
         if not encodings:
             raise serializers.ValidationError("Yuz aniqlanmadi.")
 
-        face_encoding = json.dumps(encodings[0].tolist())  # JSON formatga aylantiramiz
+        face_encoding = json.dumps(encodings[0].tolist())
 
-        # ✅ Foydalanuvchini yaratish
+        # ✅ Foydalanuvchini yaratamiz
         user = User.objects.create_user(**validated_data)
         user.set_password(password)
         user.role = 'customer'
         user.sms_code = verification_code
         user.save()
 
-        # ✅ Customer profilini yaratish
+        # ✅ Customer profilini yaratamiz
         Customer.objects.create(
             user=user,
             face_encoding=face_encoding,
             **customer_data
         )
 
-        # ✅ Email orqali kod yuborish
+        # ✅ Email orqali tasdiqlash kodini yuborish
         subject = '📩 Ro‘yxatdan o‘tish uchun tasdiqlash kodi'
         from_email = settings.DEFAULT_FROM_EMAIL
         to = [user.email]
@@ -99,7 +105,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         msg.send()
 
         return user
-
     
 class VerifyCodeSerializer(serializers.Serializer):
     phone = serializers.CharField()
@@ -124,10 +129,10 @@ class PasswordResetRequestSerializer(serializers.Serializer):
     phone = serializers.CharField()
 
     def validate(self, attrs):
-        phone = attrs.get("phone")
+        email = attrs.get("email")
 
         try:
-            user = User.objects.get(phone=phone)
+            user = User.objects.get(email=email)
         except User.DoesNotExist:
             raise serializers.ValidationError("Foydalanuvchi topilmadi.")
 
