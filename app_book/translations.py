@@ -8,16 +8,8 @@ class CategoryBookTranslationOptions(TranslationOptions):
 
 class BookTranslationOptions(TranslationOptions):
     fields = (
-        'title',
-        'creator',
-        'subject',
-        'description',
-        'publisher',
-        'contributor',
-        'source',
-        'relation',
-        'coverage',
-        'rights',
+        'title', 'creator', 'subject', 'description', 'publisher',
+        'contributor', 'source', 'relation', 'coverage', 'rights'
     )
 
 
