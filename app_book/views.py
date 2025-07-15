@@ -5,7 +5,7 @@ from .models import CategoryBook, Book
 from .serializers import CategoryBookSerializer, BookSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
-
+import random
 # ---------- CategoryBook Views ----------
 
 class CategoryBookListAPIView(APIView):
@@ -78,3 +78,11 @@ class BookDeleteAPIView(APIView):
         book = get_object_or_404(Book, pk=pk)
         book.delete()
         return Response({"detail": "Deleted"}, status=status.HTTP_204_NO_CONTENT)
+
+
+class RandomBookListAPIView(APIView):
+    def get(self, request):
+        books = list(Book.objects.all())
+        random_books = random.sample(books, min(len(books), 20))  # 20 tadan kam bo‘lsa, mavjudlar chiqadi
+        serializer = BookSerializer(random_books, many=True)
+        return Response(serializer.data)
