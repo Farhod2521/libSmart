@@ -14,6 +14,14 @@ class CategoryBook(models.Model):
         return self.name
 
 
+from django.core.exceptions import ValidationError
+
+def validate_file_size(value):
+    max_size_mb = 50
+    if value.size > max_size_mb * 1024 * 1024:
+        raise ValidationError(f"Fayl hajmi {max_size_mb}MB dan oshmasligi kerak.")
+
+
 class Book(models.Model):
     category = models.ForeignKey(CategoryBook, on_delete=models.CASCADE, related_name='books', verbose_name="Kategoriya")
 
@@ -32,6 +40,8 @@ class Book(models.Model):
     relation = models.CharField(max_length=255, blank=True, null=True, verbose_name="Aloqa / Bog‘liqlik")
     coverage = models.CharField(max_length=255, blank=True, null=True, verbose_name="Qamrov (mintaqa yoki vaqt)")
     rights = models.CharField(max_length=255, verbose_name="Huquqlar / Litsenziya")
+
+    file = models.FileField(upload_to='books/', validators=[validate_file_size], verbose_name="Kitob fayli", blank=True, null=True)
 
     class Meta:
         verbose_name = "Kitob"
