@@ -40,6 +40,8 @@ class Book(models.Model):
     relation = models.CharField(max_length=255, blank=True, null=True, verbose_name="Aloqa / Bog‘liqlik")
     coverage = models.CharField(max_length=255, blank=True, null=True, verbose_name="Qamrov (mintaqa yoki vaqt)")
     rights = models.CharField(max_length=255, verbose_name="Huquqlar / Litsenziya")
+    image = models.FileField(upload_to='books/', validators=[validate_file_size], verbose_name="Kitob rasmi", blank=True, null=True)
+
 
     file = models.FileField(upload_to='books/', validators=[validate_file_size], verbose_name="Kitob fayli", blank=True, null=True)
 
