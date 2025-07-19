@@ -26,9 +26,8 @@ class BookRatingSerializer(serializers.ModelSerializer):
         return value
     
 
-
 class BookListSerializer(serializers.ModelSerializer):
-    average_rating = serializers.FloatField()
+    average_rating = serializers.FloatField(source='avg_rating')
 
     class Meta:
         model = Book
