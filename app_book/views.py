@@ -2,12 +2,15 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import CategoryBook, Book, BookRating
-from .serializers import CategoryBookSerializer, BookSerializer, BookRatingSerializer
+from .serializers import CategoryBookSerializer, BookSerializer, BookRatingSerializer,  BookListSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 import random
 from app_user.models import Customer
-# ---------- CategoryBook Views ----------
+from django.db.models import Avg, Q
+
+
+
 
 class CategoryBookListAPIView(APIView):
     def get(self, request):
@@ -118,3 +121,51 @@ class BookRatingCreateAPIView(APIView):
             return Response({'message': 'Baho muvaffaqiyatli qo‘shildi.'}, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class BookListAPIView(APIView):
+    def get(self, request):
+        # So‘rov parametrlari
+        search = request.query_params.get('search')
+        category_id = request.query_params.get('category')
+        min_rating = request.query_params.get('min_rating')
+        ordering = request.query_params.get('ordering')  # e.g. 'rating', '-rating', 'random'
+
+        # Barcha kitoblar
+        books = Book.objects.annotate(average_rating=Avg('ratings__rating'))
+
+        # 🔍 Search
+        if search:
+            books = books.filter(
+                Q(title__icontains=search) |
+                Q(creator__icontains=search) |
+                Q(subject__icontains=search) |
+                Q(description__icontains=search)
+            )
+
+        # 🗂 Category bo‘yicha filter
+        if category_id:
+            books = books.filter(category_id=category_id)
+
+        # ⭐️ Rating bo‘yicha filter
+        if min_rating:
+            try:
+                min_rating = float(min_rating)
+                books = books.filter(average_rating__gte=min_rating)
+            except ValueError:
+                return Response({'error': 'Rating raqam bo‘lishi kerak.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 🔃 Random yoki tartib
+        if ordering == 'random':
+            books = list(books)
+            random.shuffle(books)
+        elif ordering == 'rating':
+            books = books.order_by('average_rating')
+        elif ordering == '-rating':
+            books = books.order_by('-average_rating')
+        else:
+            books = books.order_by('-id')  # default: oxirgi qo‘shilganlar
+
+        # Serialize
+        serializer = BookListSerializer(books, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

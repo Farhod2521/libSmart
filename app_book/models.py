@@ -1,7 +1,7 @@
 from django.db import models
 from  app_user.models  import  Customer
 # Create your models here.
-
+from django.db.models import Avg
 class CategoryBook(models.Model):
     name = models.CharField(max_length=255, verbose_name="Kategoriya nomi")
     description = models.TextField(blank=True, null=True, verbose_name="Kategoriya tavsifi")
@@ -49,6 +49,9 @@ class Book(models.Model):
 
     def __str__(self):
         return self.title
+    @property
+    def average_rating(self):
+        return self.ratings.aggregate(Avg('rating'))['rating__avg'] or 0
 
 
 

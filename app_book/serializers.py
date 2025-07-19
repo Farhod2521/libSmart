@@ -24,3 +24,12 @@ class BookRatingSerializer(serializers.ModelSerializer):
         if not (1 <= value <= 5):
             raise serializers.ValidationError("Baho 1 dan 5 gacha bo‘lishi kerak.")
         return value
+    
+
+
+class BookListSerializer(serializers.ModelSerializer):
+    average_rating = serializers.FloatField()
+
+    class Meta:
+        model = Book
+        fields = ['id', 'title', 'creator', 'subject', 'description', 'language', 'image', 'file', 'average_rating']
