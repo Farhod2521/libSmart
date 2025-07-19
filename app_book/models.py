@@ -1,5 +1,5 @@
 from django.db import models
-
+from  app_user.models  import  Customer
 # Create your models here.
 
 class CategoryBook(models.Model):
@@ -49,3 +49,24 @@ class Book(models.Model):
 
     def __str__(self):
         return self.title
+
+
+
+
+from django.core.validators import MinValueValidator, MaxValueValidator
+
+class BookRating(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='book_ratings', verbose_name="Mijoz")
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name='ratings', verbose_name="Kitob")
+    rating = models.IntegerField("Baho (1-5)", validators=[MinValueValidator(1), MaxValueValidator(5)])
+    comment = models.TextField("Izoh", blank=True, null=True)
+    created_at = models.DateTimeField("Qo‘yilgan vaqti", auto_now_add=True)
+    updated_at = models.DateTimeField("Yangilangan vaqti", auto_now=True)
+
+    class Meta:
+        verbose_name = "Kitob Bahosi"
+        verbose_name_plural = "Kitob Baholari"
+        unique_together = ('customer', 'book')  # Har bir mijoz bir kitobga faqat bir marta baho bera oladi
+
+    def __str__(self):
+        return f"{self.customer.user.full_name} - {self.book.title} ({self.rating}⭐)"
