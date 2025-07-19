@@ -130,7 +130,7 @@ class AllBookListAPIView(APIView):
         min_rating = request.query_params.get('min_rating')
         ordering = request.query_params.get('ordering')  # e.g., 'rating', '-rating', 'random'
 
-        books = Book.objects.annotate(average_rating=Avg('ratings__rating'))
+        books = Book.objects.annotate(avg_rating=Avg('ratings__rating'))
 
         if search:
             books = books.filter(
