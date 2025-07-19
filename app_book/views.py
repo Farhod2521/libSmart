@@ -8,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 import random
 from app_user.models import Customer
 from django.db.models import Avg, Q
-
+from .pagination import  BookPagination
 
 
 
@@ -123,18 +123,15 @@ class BookRatingCreateAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
-class BookListAPIView(APIView):
+class AllBookListAPIView(APIView):
     def get(self, request):
-        # So‘rov parametrlari
         search = request.query_params.get('search')
         category_id = request.query_params.get('category')
         min_rating = request.query_params.get('min_rating')
-        ordering = request.query_params.get('ordering')  # e.g. 'rating', '-rating', 'random'
+        ordering = request.query_params.get('ordering')  # e.g., 'rating', '-rating', 'random'
 
-        # Barcha kitoblar
         books = Book.objects.annotate(average_rating=Avg('ratings__rating'))
 
-        # 🔍 Search
         if search:
             books = books.filter(
                 Q(title__icontains=search) |
@@ -143,11 +140,9 @@ class BookListAPIView(APIView):
                 Q(description__icontains=search)
             )
 
-        # 🗂 Category bo‘yicha filter
         if category_id:
             books = books.filter(category_id=category_id)
 
-        # ⭐️ Rating bo‘yicha filter
         if min_rating:
             try:
                 min_rating = float(min_rating)
@@ -155,7 +150,6 @@ class BookListAPIView(APIView):
             except ValueError:
                 return Response({'error': 'Rating raqam bo‘lishi kerak.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 🔃 Random yoki tartib
         if ordering == 'random':
             books = list(books)
             random.shuffle(books)
@@ -164,8 +158,10 @@ class BookListAPIView(APIView):
         elif ordering == '-rating':
             books = books.order_by('-average_rating')
         else:
-            books = books.order_by('-id')  # default: oxirgi qo‘shilganlar
+            books = books.order_by('-id')
 
-        # Serialize
-        serializer = BookListSerializer(books, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        paginator = BookPagination()
+        page = paginator.paginate_queryset(books, request)
+        serializer = BookListSerializer(page, many=True)
+
+        return paginator.get_paginated_response(serializer.data)

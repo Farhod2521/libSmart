@@ -3,7 +3,7 @@ from .views import (
     CategoryBookListAPIView, CategoryBookCreateAPIView,
     CategoryBookUpdateAPIView, CategoryBookDeleteAPIView,
     BookListAPIView, BookCreateAPIView,
-    BookUpdateAPIView, BookDeleteAPIView,RandomBookListAPIView, BookRatingCreateAPIView
+    BookUpdateAPIView, BookDeleteAPIView,RandomBookListAPIView, BookRatingCreateAPIView, AllBookListAPIView
 )
 
 urlpatterns = [
@@ -22,4 +22,5 @@ urlpatterns = [
 
 
     path('customer/books/rate/', BookRatingCreateAPIView.as_view(), name='book-rating'),
+    path('all-books/', AllBookListAPIView.as_view(), name='book-list'),
 ]
