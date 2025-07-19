@@ -180,3 +180,25 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         user.save()
 
         return {"message": "Parol muvaffaqiyatli tiklandi."}
+
+
+class CustomerProfileSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source='user.full_name')
+    phone = serializers.CharField(source='user.phone')
+    email = serializers.EmailField(source='user.email', allow_null=True)
+
+    class Meta:
+        model = Customer
+        fields = [
+            'full_name',
+            'phone',
+            'email',
+            'birth_date',
+            'gender',
+            'language',
+            'state',
+            'region',
+            'education',
+            'occupation',
+            'interests',
+        ]

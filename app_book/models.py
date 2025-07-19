@@ -34,7 +34,7 @@ class Book(models.Model):
     date = models.DateField(verbose_name="Sana")
     type = models.CharField(max_length=100, verbose_name="Resurs turi")
     format = models.CharField(max_length=100, verbose_name="Format / Fayl turi")
-    identifier = models.URLField(max_length=500, verbose_name="Identifikator / Manzil")
+    identifier = models.URLField(max_length=500, verbose_name="Identifikator / Manzil", blank=True, null=True)
     source = models.CharField(max_length=255, blank=True, null=True, verbose_name="Manba")
     language = models.CharField(max_length=50, verbose_name="Til")
     relation = models.CharField(max_length=255, blank=True, null=True, verbose_name="Aloqa / Bog‘liqlik")

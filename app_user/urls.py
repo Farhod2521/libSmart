@@ -3,7 +3,7 @@ from .views import (
     RegisterAPIView,
     VerifyCodeAPIView,
     PasswordResetRequestAPIView,
-    PasswordResetConfirmAPIView, LoginWithPhoneAPIView, FaceLoginAPIView
+    PasswordResetConfirmAPIView, LoginWithPhoneAPIView, FaceLoginAPIView, CustomerProfileAPIView
 )
 
 urlpatterns = [
@@ -13,6 +13,6 @@ urlpatterns = [
     path('customer/reset-password/confirm/', PasswordResetConfirmAPIView.as_view()),
     path('customer/login/', LoginWithPhoneAPIView.as_view()),
     path('customer/face-login/', FaceLoginAPIView.as_view()),
-
+    path('customer/profile/', CustomerProfileAPIView.as_view(), name='customer-profile'),
 
 ]

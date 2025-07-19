@@ -5,11 +5,11 @@ from .serializers import (
     RegisterSerializer,
     VerifyCodeSerializer,
     PasswordResetRequestSerializer,
-    PasswordResetConfirmSerializer
+    PasswordResetConfirmSerializer, CustomerProfileSerializer
 )
 from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
-
+from rest_framework.permissions import IsAuthenticated
 from PIL import Image
 import numpy as np
 import io 
@@ -127,3 +127,23 @@ class FaceLoginAPIView(APIView):
                 continue
 
         return Response({"error": "Yuz hech bir foydalanuvchiga mos kelmadi."}, status=status.HTTP_401_UNAUTHORIZED)
+    
+
+
+class CustomerProfileAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        # Faqat 'customer' roliga ruxsat
+        if user.role != 'customer':
+            return Response({'error': 'Sizda ushbu sahifaga ruxsat yo‘q.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            customer_profile = user.customer_profile
+        except Customer.DoesNotExist:
+            return Response({'error': 'Profil topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = CustomerProfileSerializer(customer_profile)
+        return Response(serializer.data, status=status.HTTP_200_OK)
