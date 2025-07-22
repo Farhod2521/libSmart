@@ -32,3 +32,29 @@ class BookListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Book
         fields = ['id', 'title', 'creator', 'subject', 'description', 'language', 'image', 'file', 'average_rating']
+
+
+
+class BookRatingDetailSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source='customer.user.full_name', read_only=True)
+
+    class Meta:
+        model = BookRating
+        fields = ['id', 'customer_name', 'rating', 'comment', 'created_at']
+
+class BookDetailSerializer(serializers.ModelSerializer):
+    ratings = BookRatingDetailSerializer(many=True, read_only=True)
+    average_rating = serializers.FloatField(read_only=True)
+    rating_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Book
+        fields = [
+            'id', 'title', 'creator', 'subject', 'description', 'publisher',
+            'contributor', 'date', 'type', 'format', 'identifier', 'source',
+            'language', 'relation', 'coverage', 'rights', 'image', 'file',
+            'average_rating', 'rating_count', 'ratings'
+        ]
+
+    def get_rating_count(self, obj):
+        return obj.ratings.count()
