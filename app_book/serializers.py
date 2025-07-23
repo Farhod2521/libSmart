@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CategoryBook, Book, BookRating
+from .models import CategoryBook, Book, BookRating, BookLike
 
 
 class CategoryBookSerializer(serializers.ModelSerializer):
@@ -58,3 +58,9 @@ class BookDetailSerializer(serializers.ModelSerializer):
 
     def get_rating_count(self, obj):
         return obj.ratings.count()
+    
+
+class BookLikeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BookLike
+        fields = ['id', 'book', 'created_at']
