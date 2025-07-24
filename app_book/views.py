@@ -84,7 +84,7 @@ class BookDeleteAPIView(APIView):
     def delete(self, request, pk):
         book = get_object_or_404(Book, pk=pk)
         book.delete()
-        return Response({"detail": "Deleted"}, status=status.HTTP_204_NO_CONTENT)
+        return Response({"detail": "Kitob muvaffaqiyatli o‘chirildi."}, status=status.HTTP_200_OK)
 
 
 class RandomBookListAPIView(APIView):
