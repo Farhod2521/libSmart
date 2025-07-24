@@ -80,12 +80,8 @@ class BookDetailSerializer(serializers.ModelSerializer):
 
     def get_rating_count(self, obj):
         return obj.ratings.count()
-<<<<<<< HEAD
-=======
-    
 
 class BookLikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = BookLike
         fields = ['id', 'book', 'created_at']
->>>>>>> 850d01fd17c78e54849cc05354abc56b85ce874a
