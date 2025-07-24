@@ -1,8 +1,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import CategoryBook, Book, BookRating
-from .serializers import CategoryBookSerializer, BookSerializer, BookRatingSerializer,  BookListSerializer, BookDetailSerializer
+from .models import CategoryBook, Book, BookRating, BookLike
+from .serializers import CategoryBookSerializer, BookSerializer, BookRatingSerializer,  BookListSerializer, BookDetailSerializer, BookLikeSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 import random
@@ -169,3 +169,53 @@ class AllBookListAPIView(APIView):
         serializer = BookListSerializer(page, many=True)
 
         return paginator.get_paginated_response(serializer.data)
+    
+
+
+
+
+
+class BookLikeCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        customer = get_object_or_404(Customer, user=request.user)
+        book_id = request.data.get("book")
+
+        if not book_id:
+            return Response({"error": "Kitob ID jo'natilmagan."}, status=status.HTTP_400_BAD_REQUEST)
+
+        book = get_object_or_404(Book, id=book_id)
+
+        # oldin yoqtirilgan bo'lsa, error qaytaramiz
+        if BookLike.objects.filter(customer=customer, book=book).exists():
+            return Response({"error": "Bu kitob allaqachon yoqtirilgan."}, status=status.HTTP_400_BAD_REQUEST)
+
+        book_like = BookLike.objects.create(customer=customer, book=book)
+        serializer = BookLikeSerializer(book_like)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+# 📄 2. Yoqtirgan kitoblar ro'yxati
+class BookLikeListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        customer = get_object_or_404(Customer, user=request.user)
+        likes = BookLike.objects.filter(customer=customer)
+        serializer = BookLikeSerializer(likes, many=True)
+        return Response(serializer.data)
+
+# ❌ 3. Yoqtirgan kitobni o'chirish
+class BookLikeDeleteAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, book_id):
+        customer = get_object_or_404(Customer, user=request.user)
+        book = get_object_or_404(Book, id=book_id)
+
+        like = BookLike.objects.filter(customer=customer, book=book).first()
+        if not like:
+            return Response({"error": "Bu kitob yoqtirilmagan."}, status=status.HTTP_404_NOT_FOUND)
+
+        like.delete()
+        return Response({"message": "Kitob yoqtirishlardan o'chirildi."}, status=status.HTTP_204_NO_CONTENT)

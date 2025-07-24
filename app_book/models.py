@@ -42,7 +42,7 @@ class Book(models.Model):
     rights = models.CharField(max_length=255, verbose_name="Huquqlar / Litsenziya")
     image = models.FileField(upload_to='books/', validators=[validate_file_size], verbose_name="Kitob rasmi", blank=True, null=True)
     file = models.FileField(upload_to='books/', validators=[validate_file_size], verbose_name="Kitob fayli", blank=True, null=True)
-
+    download_count = models.PositiveIntegerField(default=0, verbose_name="Yuklab olinganlar soni")
     class Meta:
         verbose_name = "Kitob"
         verbose_name_plural = "Kitoblar"
@@ -73,3 +73,17 @@ class BookRating(models.Model):
 
     def __str__(self):
         return f"{self.customer.user.full_name} - {self.book.title} ({self.rating}⭐)"
+    
+
+class BookLike(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='liked_books', verbose_name="Mijoz")
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name='likes', verbose_name="Kitob")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yoqtirilgan vaqti")
+
+    class Meta:
+        verbose_name = "Yoqtirilgan kitob"
+        verbose_name_plural = "Yoqtirilgan kitoblar"
+        unique_together = ('customer', 'book')  # Har bir kitob faqat 1 marta like qilinadi
+
+    def __str__(self):
+        return f"{self.customer.user.full_name} → {self.book.title}"
