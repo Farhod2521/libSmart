@@ -67,15 +67,18 @@ class BookCreateAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+from rest_framework.parsers import MultiPartParser, FormParser
+
 class BookUpdateAPIView(APIView):
-    def put(self, request, pk):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def patch(self, request, pk):
         book = get_object_or_404(Book, pk=pk)
-        serializer = BookSerializer(book, data=request.data)
+        serializer = BookSerializer(book, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 class BookDeleteAPIView(APIView):
     def delete(self, request, pk):
