@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <title>Kitob Qidiruv</title>
+  <style>
+    body {
+      font-family: Arial;
+      background-color: #f5f5f5;
+      padding: 30px;
+    }
+    #search {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    #results {
+      margin-top: 20px;
+    }
+    .book {
+      background: white;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .book-title {
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .book-description {
+      color: #444;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>📚 Kitob Qidiruv</h2>
+  <input type="text" id="search" placeholder="Kitob nomi yoki tavsif yozing...">
+  <div id="results"></div>
+
+  <script>
+    let timeout = null;
+
+    document.getElementById("search").addEventListener("input", function () {
+      clearTimeout(timeout);
+      const query = this.value.trim();
+
+      if (query.length < 2) {
+        document.getElementById("results").innerHTML = "";
+        return;
+      }
+
+      timeout = setTimeout(() => {
+        fetch(`https://api.jetmind.uz/api/book/books/search/?q=${encodeURIComponent(query)}`)
+          .then(res => res.json())
+          .then(data => {
+            let html = "";
+            if (data.length === 0) {
+              html = "<p>❌ Hech narsa topilmadi.</p>";
+            } else {
+              html = data.map(book => `
+                <div class="book">
+                  <div class="book-title">${book.title_uz || book.title_en || book.title}</div>
+                  <div class="book-description">${book.description_uz || book.description_en || ''}</div>
+                </div>
+              `).join('');
+            }
+            document.getElementById("results").innerHTML = html;
+          })
+          .catch(err => {
+            document.getElementById("results").innerHTML = "<p style='color:red;'>Xatolik yuz berdi.</p>";
+            console.error("Xatolik:", err);
+          });
+      }, 300);
+    });
+  </script>
+
+</body>
+</html>
