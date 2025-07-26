@@ -1,83 +1,78 @@
 <!DOCTYPE html>
 <html lang="uz">
 <head>
-  <meta charset="UTF-8">
-  <title>Kitob Qidiruv</title>
-  <style>
-    body {
-      font-family: Arial;
-      background-color: #f5f5f5;
-      padding: 30px;
-    }
-    #search {
-      width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-    }
-    #results {
-      margin-top: 20px;
-    }
-    .book {
-      background: white;
-      padding: 15px;
-      margin-bottom: 10px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .book-title {
-      font-weight: bold;
-      font-size: 18px;
-    }
-    .book-description {
-      color: #444;
-      margin-top: 5px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Kitob Qidiruv</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 30px;
+            background-color: #f0f0f0;
+        }
+        input {
+            width: 300px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        .result {
+            margin-top: 20px;
+        }
+        .book {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+    </style>
 </head>
 <body>
 
-  <h2>📚 Kitob Qidiruv</h2>
-  <input type="text" id="search" placeholder="Kitob nomi yoki tavsif yozing...">
-  <div id="results"></div>
+    <h2>📚 Kitob Qidiruvi</h2>
+    <input type="text" id="searchBox" placeholder="So‘z kiriting...">
 
-  <script>
-    let timeout = null;
+    <div class="result" id="results"></div>
 
-    document.getElementById("search").addEventListener("input", function () {
-      clearTimeout(timeout);
-      const query = this.value.trim();
+    <script>
+        const input = document.getElementById('searchBox');
+        const results = document.getElementById('results');
+        let timer = null;
 
-      if (query.length < 2) {
-        document.getElementById("results").innerHTML = "";
-        return;
-      }
-
-      timeout = setTimeout(() => {
-        fetch(`https://api.jetmind.uz/api/book/books/search/?q=${encodeURIComponent(query)}`)
-          .then(res => res.json())
-          .then(data => {
-            let html = "";
-            if (data.length === 0) {
-              html = "<p>❌ Hech narsa topilmadi.</p>";
-            } else {
-              html = data.map(book => `
-                <div class="book">
-                  <div class="book-title">${book.title_uz || book.title_en || book.title}</div>
-                  <div class="book-description">${book.description_uz || book.description_en || ''}</div>
-                </div>
-              `).join('');
+        input.addEventListener('input', function () {
+            clearTimeout(timer);
+            const query = this.value.trim();
+            if (query.length === 0) {
+                results.innerHTML = '';
+                return;
             }
-            document.getElementById("results").innerHTML = html;
-          })
-          .catch(err => {
-            document.getElementById("results").innerHTML = "<p style='color:red;'>Xatolik yuz berdi.</p>";
-            console.error("Xatolik:", err);
-          });
-      }, 300);
-    });
-  </script>
+
+            timer = setTimeout(async () => {
+                console.log("🔍 Qidirilmoqda:", query);
+                try {
+                    const res = await fetch(`http://62.113.41.191:8080/search?q=${encodeURIComponent(query)}`);
+                    const data = await res.json();
+
+                    results.innerHTML = '';
+                    if (data.length === 0) {
+                        results.innerHTML = '<p>❌ Hech narsa topilmadi.</p>';
+                    } else {
+                        data.forEach(book => {
+                            const div = document.createElement('div');
+                            div.className = 'book';
+                            div.innerHTML = `
+                                <strong>${book.title_uz || book.title_ru || book.title_en}</strong><br>
+                                <em>${book.description_uz || ''}</em>
+                            `;
+                            results.appendChild(div);
+                        });
+                    }
+                } catch (error) {
+                    console.error("Xatolik:", error);
+                    results.innerHTML = '<p style="color:red">🚨 Server bilan aloqa yo‘q!</p>';
+                }
+            }, 500); // 0.5s delay
+        });
+    </script>
 
 </body>
 </html>
