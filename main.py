@@ -1,0 +1,73 @@
+import asyncpg
+from fastapi import FastAPI, Query, HTTPException
+from pydantic import BaseModel
+from typing import List
+import uvicorn
+
+app = FastAPI()
+
+DATABASE_CONFIG = {
+    'user': 'libsmartuser',
+    'password': 'libSmart1234',
+    'database': 'libsmart',
+    'host': 'localhost',
+    'port': 5432
+}
+
+
+class BookOut(BaseModel):
+    id: int
+    title_uz: str
+    title_ru: str
+    title_en: str
+    description_uz: str | None
+    description_ru: str | None
+    description_en: str | None
+
+
+async def get_connection():
+    return await asyncpg.connect(**DATABASE_CONFIG)
+
+
+@app.get("/search", response_model=List[BookOut])
+async def search_books(q: str = Query(..., min_length=1)):
+    conn = await get_connection()
+
+    # Trigramni yoqamiz
+    await conn.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
+
+    # similarity() ni ishlatamiz
+    query = f"""
+        SELECT id, title_uz, title_ru, title_en, description_uz, description_ru, description_en
+        FROM book_book
+        WHERE
+            similarity(title_uz, $1) > 0.3 OR
+            similarity(title_ru, $1) > 0.3 OR
+            similarity(title_en, $1) > 0.3 OR
+            similarity(description_uz, $1) > 0.3 OR
+            similarity(description_ru, $1) > 0.3 OR
+            similarity(description_en, $1) > 0.3
+        ORDER BY GREATEST(
+            similarity(title_uz, $1),
+            similarity(title_ru, $1),
+            similarity(title_en, $1),
+            similarity(description_uz, $1),
+            similarity(description_ru, $1),
+            similarity(description_en, $1)
+        ) DESC
+        LIMIT 20;
+    """
+
+    try:
+        rows = await conn.fetch(query, q)
+    except Exception as e:
+        await conn.close()
+        raise HTTPException(status_code=500, detail=f"Bazada xatolik: {str(e)}")
+
+    await conn.close()
+    books = [BookOut(**dict(row)) for row in rows]
+    return books
+
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
