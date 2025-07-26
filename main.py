@@ -17,12 +17,11 @@ DATABASE_CONFIG = {
 class BookOut(BaseModel):
     id: int
     title_uz: str
-    title_ru: str
-    title_en: str
+    title_ru: str | None
+    title_en: str | None
     description_uz: str | None
     description_ru: str | None
     description_en: str | None
-
 async def get_connection():
     return await asyncpg.connect(**DATABASE_CONFIG)
 
