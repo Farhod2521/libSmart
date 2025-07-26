@@ -43,6 +43,8 @@ class Book(models.Model):
     image = models.FileField(upload_to='books/', validators=[validate_file_size], verbose_name="Kitob rasmi", blank=True, null=True)
     file = models.FileField(upload_to='books/', validators=[validate_file_size], verbose_name="Kitob fayli", blank=True, null=True)
     download_count = models.PositiveIntegerField(default=0, verbose_name="Yuklab olinganlar soni")
+    is_download_allowed = models.BooleanField(default=True, verbose_name="Yuklab olishga ruxsat berilsinmi?")
+
     class Meta:
         verbose_name = "Kitob"
         verbose_name_plural = "Kitoblar"
