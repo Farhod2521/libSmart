@@ -4,7 +4,7 @@ from .views import (
     CategoryBookUpdateAPIView, CategoryBookDeleteAPIView,
     BookListAPIView, BookCreateAPIView,
     BookUpdateAPIView, BookDeleteAPIView,RandomBookListAPIView, BookRatingCreateAPIView, 
-    AllBookListAPIView, BookDetailAPIView, BookLikeCreateAPIView, BookLikeListAPIView, BookLikeDeleteAPIView
+    AllBookListAPIView, BookDetailAPIView, BookLikeCreateAPIView, BookLikeListAPIView, BookLikeDeleteAPIView, AsyncSearchBookAPIView
 )
 
 urlpatterns = [
@@ -21,6 +21,7 @@ urlpatterns = [
     path('book/update/<int:pk>/', BookUpdateAPIView.as_view(), name='book-update'),
     path('book/delete/<int:pk>/', BookDeleteAPIView.as_view(), name='book-delete'),
     path('book/random/', RandomBookListAPIView.as_view(), name='book-delete'),
+    path('books/search/', AsyncSearchBookAPIView.as_view(), name='async-book-search'),
 
 
     path('customer/books/rate/', BookRatingCreateAPIView.as_view(), name='book-rating'),
