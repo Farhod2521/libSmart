@@ -228,22 +228,25 @@ from django.db import models
 class AsyncSearchBookAPIView(APIView):
     async def get(self, request):
         query = request.GET.get('q', '')
-
         if not query:
             return Response({"detail": "So‘rov bo‘sh bo‘lmasligi kerak"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Sinxron ORM qismni async o‘rash
+        # 🔹 Sinxron ORM qismi
         @sync_to_async
-        def search_books(query):
+        def search_books():
             return list(Book.objects.filter(
-                models.Q(title_uz__icontains=query) |
-                models.Q(title_ru__icontains=query) |
-                models.Q(title_en__icontains=query) |
-                models.Q(description_uz__icontains=query) |
-                models.Q(description_ru__icontains=query) |
-                models.Q(description_en__icontains=query)
+                Q(title_uz__icontains=query) |
+                Q(title_ru__icontains=query) |
+                Q(title_en__icontains=query) |
+                Q(description_uz__icontains=query) |
+                Q(description_ru__icontains=query) |
+                Q(description_en__icontains=query)
             )[:20])
 
-        books = await search_books(query)  # ✅ BU YERGA `await` QO‘YILISHI SHART
+        # 🔹 await qilish shart!
+        books = await search_books()
+
+        # 🔹 Serializer sync bo‘lishi kerak — shuning uchun undan keyin await yo‘q
         serializer = BookSerializer(books, many=True)
-        return Response(serializer.data)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
