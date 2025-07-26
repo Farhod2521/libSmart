@@ -222,3 +222,27 @@ class BookLikeDeleteAPIView(APIView):
 
         like.delete()
         return Response({"message": "Kitob yoqtirishlardan o'chirildi."}, status=status.HTTP_204_NO_CONTENT)
+    
+from asgiref.sync import sync_to_async
+from django.db import models
+class AsyncSearchBookAPIView(APIView):
+    async def get(self, request):
+        query = request.GET.get('q', '')
+        if not query:
+            return Response({"detail": "So‘rov bo‘sh bo‘lmasligi kerak"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ORM - sinxron, shuning uchun `sync_to_async` ishlatamiz
+        @sync_to_async
+        def search_books(query):
+            return list(Book.objects.filter(
+                models.Q(title_uz__icontains=query) |
+                models.Q(title_ru__icontains=query) |
+                models.Q(title_en__icontains=query) |
+                models.Q(description_uz__icontains=query) |
+                models.Q(description_ru__icontains=query) |
+                models.Q(description_en__icontains=query)
+            )[:20])  # limit 20
+
+        books = await search_books(query)
+        serializer = BookSerializer(books, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
