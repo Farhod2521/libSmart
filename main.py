@@ -22,6 +22,7 @@ class BookOut(BaseModel):
     description_uz: str | None
     description_ru: str | None
     description_en: str | None
+
 async def get_connection():
     return await asyncpg.connect(**DATABASE_CONFIG)
 
@@ -29,19 +30,29 @@ async def get_connection():
 async def search_books(q: str = Query(..., min_length=1)):
     conn = await get_connection()
 
+    # pg_trgm extension faqat bir marta kerak
     await conn.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
 
+    # similarity() yordamida fuzzy search
     query = """
         SELECT id, title_uz, title_ru, title_en,
                description_uz, description_ru, description_en
         FROM app_book_book
         WHERE
-            title_uz ILIKE '%' || $1 || '%' OR
-            title_ru ILIKE '%' || $1 || '%' OR
-            title_en ILIKE '%' || $1 || '%' OR
-            description_uz ILIKE '%' || $1 || '%' OR
-            description_ru ILIKE '%' || $1 || '%' OR
-            description_en ILIKE '%' || $1 || '%'
+            similarity(title_uz, $1) > 0.2 OR
+            similarity(title_ru, $1) > 0.2 OR
+            similarity(title_en, $1) > 0.2 OR
+            similarity(description_uz, $1) > 0.2 OR
+            similarity(description_ru, $1) > 0.2 OR
+            similarity(description_en, $1) > 0.2
+        ORDER BY GREATEST(
+            similarity(title_uz, $1),
+            similarity(title_ru, $1),
+            similarity(title_en, $1),
+            similarity(description_uz, $1),
+            similarity(description_ru, $1),
+            similarity(description_en, $1)
+        ) DESC
         LIMIT 20;
     """
 
