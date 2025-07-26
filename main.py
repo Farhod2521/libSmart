@@ -37,20 +37,12 @@ async def search_books(q: str = Query(..., min_length=1)):
                description_uz, description_ru, description_en
         FROM app_book_book
         WHERE
-            similarity(title_uz, $1) > 0.3 OR
-            similarity(title_ru, $1) > 0.3 OR
-            similarity(title_en, $1) > 0.3 OR
-            similarity(description_uz, $1) > 0.3 OR
-            similarity(description_ru, $1) > 0.3 OR
-            similarity(description_en, $1) > 0.3
-        ORDER BY GREATEST(
-            similarity(title_uz, $1),
-            similarity(title_ru, $1),
-            similarity(title_en, $1),
-            similarity(description_uz, $1),
-            similarity(description_ru, $1),
-            similarity(description_en, $1)
-        ) DESC
+            title_uz ILIKE '%' || $1 || '%' OR
+            title_ru ILIKE '%' || $1 || '%' OR
+            title_en ILIKE '%' || $1 || '%' OR
+            description_uz ILIKE '%' || $1 || '%' OR
+            description_ru ILIKE '%' || $1 || '%' OR
+            description_en ILIKE '%' || $1 || '%'
         LIMIT 20;
     """
 
