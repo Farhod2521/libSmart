@@ -30,21 +30,21 @@ async def get_connection():
 async def search_books(q: str = Query(..., min_length=1)):
     conn = await get_connection()
 
-    # pg_trgm extension faqat bir marta kerak
+    # pg_trgm extension yoqish
     await conn.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
 
-    # similarity() yordamida fuzzy search
+    # Pastroq similarity > 0.1 qildik
     query = """
         SELECT id, title_uz, title_ru, title_en,
                description_uz, description_ru, description_en
         FROM app_book_book
         WHERE
-            similarity(title_uz, $1) > 0.2 OR
-            similarity(title_ru, $1) > 0.2 OR
-            similarity(title_en, $1) > 0.2 OR
-            similarity(description_uz, $1) > 0.2 OR
-            similarity(description_ru, $1) > 0.2 OR
-            similarity(description_en, $1) > 0.2
+            similarity(title_uz, $1) > 0.1 OR
+            similarity(title_ru, $1) > 0.1 OR
+            similarity(title_en, $1) > 0.1 OR
+            similarity(description_uz, $1) > 0.1 OR
+            similarity(description_ru, $1) > 0.1 OR
+            similarity(description_en, $1) > 0.1
         ORDER BY GREATEST(
             similarity(title_uz, $1),
             similarity(title_ru, $1),
