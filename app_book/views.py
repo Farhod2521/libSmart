@@ -223,3 +223,11 @@ class BookLikeDeleteAPIView(APIView):
         like.delete()
         return Response({"message": "Kitob yoqtirishlardan o'chirildi."}, status=status.HTTP_204_NO_CONTENT)
     
+
+
+
+
+
+
+
+

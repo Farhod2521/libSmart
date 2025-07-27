@@ -9,6 +9,7 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 ) 
+from .VIEW.searchview    import SearchHistoryListAPIView
 urlpatterns = [
     path('customer/register/', RegisterAPIView.as_view()),
     path('customer/verify/', VerifyCodeAPIView.as_view()),
@@ -18,5 +19,6 @@ urlpatterns = [
     path('customer/face-login/', FaceLoginAPIView.as_view()),
     path('customer/profile/', CustomerProfileAPIView.as_view(), name='customer-profile'),
     path('customer/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('customer/search-history/', SearchHistoryListAPIView.as_view(), name='search-history-list'),
 
 ]

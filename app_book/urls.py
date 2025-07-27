@@ -6,7 +6,7 @@ from .views import (
     BookUpdateAPIView, BookDeleteAPIView,RandomBookListAPIView, BookRatingCreateAPIView, 
     AllBookListAPIView, BookDetailAPIView, BookLikeCreateAPIView, BookLikeListAPIView, BookLikeDeleteAPIView
 )
-
+from .VIEW.searchview  import  SearchHistoryListAPIView
 urlpatterns = [
     # CategoryBook
     path('category/list/', CategoryBookListAPIView.as_view(), name='categorybook-list'),
@@ -31,4 +31,6 @@ urlpatterns = [
     path('book-like/', BookLikeCreateAPIView.as_view(), name='book-like-create'),
     path('book-like/list/', BookLikeListAPIView.as_view(), name='book-like-list'),
     path('book-like/<int:book_id>/delete/', BookLikeDeleteAPIView.as_view(), name='book-like-delete'),
+
+
 ]

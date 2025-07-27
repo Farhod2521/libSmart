@@ -92,3 +92,7 @@ class BookLikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = BookLike
         fields = ['id', 'book', 'created_at']
+
+
+
+

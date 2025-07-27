@@ -202,3 +202,16 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             'occupation',
             'interests',
         ]
+
+
+from app_book.models import SearchHistory
+
+class SearchHistorySerializer(serializers.ModelSerializer):
+    book_title = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SearchHistory
+        fields = ['id', 'query', 'searched_at', 'book', 'book_title']
+
+    def get_book_title(self, obj):
+        return obj.book.title if obj.book else None
