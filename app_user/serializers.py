@@ -20,7 +20,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     region = serializers.CharField()
     education = serializers.CharField()
     occupation = serializers.CharField()
-    interests = serializers.CharField(required=False, allow_blank=True)
+    interests = serializers.ListField(child=serializers.CharField(), required=False)  # JSON list sifatida qabul qiladi
 
     # 🔹 Yuz rasmi (base64 formatda)
     image_base64 = serializers.CharField(write_only=True)
@@ -46,6 +46,9 @@ class RegisterSerializer(serializers.ModelSerializer):
             ]
         }
 
+        # interests ni json tarzda string qilib saqlaymiz
+        customer_data['interests'] = json.dumps(customer_data.get('interests', []))
+
         # 🎯 Parol va rasm
         password = validated_data.pop('password')
         image_base64 = validated_data.pop('image_base64')
@@ -53,7 +56,6 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         # ✅ Base64 rasmni ochish va yuz encoding olish
         try:
-            # data:image/jpeg;base64,... bo‘lsa - tozalash
             if "base64," in image_base64:
                 image_base64 = image_base64.split("base64,")[1]
             image_base64 = re.sub(r'\s+', '', image_base64)
