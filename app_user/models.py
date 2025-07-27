@@ -77,7 +77,7 @@ from django.utils import timezone
 
 class SearchHistory(models.Model):
     customer = models.ForeignKey(
-        'Customer', on_delete=models.SET_NULL,
+        Customer, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='search_histories',
         verbose_name="Foydalanuvchi"
     )
