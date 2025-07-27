@@ -1,7 +1,7 @@
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db import models
 from django.utils import timezone
-
+from  app_book.models import Book
 class UserManager(BaseUserManager):
     def create_user(self, phone, password=None, **extra_fields):
         if not phone:
@@ -85,7 +85,7 @@ class SearchHistory(models.Model):
     searched_at = models.DateTimeField(default=timezone.now, verbose_name="Qidirilgan vaqt")
     
     book = models.ForeignKey(
-        'Book', on_delete=models.SET_NULL,
+        Book, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='search_histories',
         verbose_name="Qidirilgan kitob (agar aniqlansa)"
     )
