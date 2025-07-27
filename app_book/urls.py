@@ -6,7 +6,7 @@ from .views import (
     BookUpdateAPIView, BookDeleteAPIView,RandomBookListAPIView, BookRatingCreateAPIView, 
     AllBookListAPIView, BookDetailAPIView, BookLikeCreateAPIView, BookLikeListAPIView, BookLikeDeleteAPIView
 )
-from .VIEW.searchview  import  SearchHistoryListAPIView
+
 urlpatterns = [
     # CategoryBook
     path('category/list/', CategoryBookListAPIView.as_view(), name='categorybook-list'),
