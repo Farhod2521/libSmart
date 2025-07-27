@@ -1,22 +1,21 @@
 import asyncpg
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 import uvicorn
+import datetime
 
 app = FastAPI()
 
-# 🌍 CORS qo‘shamiz (hamma domenlarga ruxsat beriladi)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # barcha domenlarga ruxsat
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # GET, POST, DELETE, va boshqalar
-    allow_headers=["*"],  # barcha headerlarga ruxsat
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# 📦 PostgreSQL sozlamalari
 DATABASE_CONFIG = {
     'user': 'libsmartuser',
     'password': 'libSmart1234',
@@ -25,31 +24,35 @@ DATABASE_CONFIG = {
     'port': 5432
 }
 
-# 📘 Kitob modeli
 class BookOut(BaseModel):
     id: int
     title_uz: str
-    title_ru: str | None
-    title_en: str | None
-    description_uz: str | None
-    description_ru: str | None
-    description_en: str | None
+    title_ru: Optional[str]
+    title_en: Optional[str]
+    description_uz: Optional[str]
+    description_ru: Optional[str]
+    description_en: Optional[str]
 
-# 🔌 Ulanuvchi olish
 async def get_connection():
     return await asyncpg.connect(**DATABASE_CONFIG)
 
-# 🔍 Qidiruv endpoint
+async def get_user_id_by_token(conn, token: str) -> Optional[int]:
+    row = await conn.fetchrow("SELECT user_id FROM authtoken_token WHERE key = $1", token)
+    return row['user_id'] if row else None
+
 @app.get("/search", response_model=List[BookOut])
-async def search_books(q: str = Query(..., min_length=1)):
+async def search_books(q: str = Query(..., min_length=1), authorization: Optional[str] = Header(None)):
     conn = await get_connection()
     await conn.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
-    
-    # So'zni kichik harflarga o'tkazamiz va bo'shliqlarni olib tashlaymiz
+
     search_term = q.strip().lower()
-    
+    user_id = None
+
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+        user_id = await get_user_id_by_token(conn, token)
+
     if len(search_term) >= 3:
-        # 3 yoki undan ortiq harflar uchun trigram qidiruv
         query = """
             SELECT id, title_uz, title_ru, title_en,
                    description_uz, description_ru, description_en,
@@ -70,7 +73,6 @@ async def search_books(q: str = Query(..., min_length=1)):
             LIMIT 20;
         """
     else:
-        # 1-2 harfli so'zlar uchun boshlanishiga qarab qidiruv
         query = """
             SELECT id, title_uz, title_ru, title_en,
                    description_uz, description_ru, description_en
@@ -81,18 +83,27 @@ async def search_books(q: str = Query(..., min_length=1)):
                 LOWER(title_en) LIKE $1 || '%'
             LIMIT 20;
         """
-    
+
     try:
         rows = await conn.fetch(query, search_term)
     except Exception as e:
         await conn.close()
         raise HTTPException(status_code=500, detail=f"Bazada xatolik: {str(e)}")
-    
-    await conn.close()
-    books = [BookOut(**{k: v for k, v in dict(row).items() if k != 'sim_score'}) 
+
+    books = [BookOut(**{k: v for k, v in dict(row).items() if k != 'sim_score'})
              for row in rows]
+
+    try:
+        book_id = rows[0]['id'] if rows else None
+        await conn.execute("""
+            INSERT INTO app_book_searchhistory (customer_id, query, searched_at, book_id)
+            VALUES ($1, $2, $3, $4)
+        """, user_id, q, datetime.datetime.utcnow(), book_id)
+    except Exception as e:
+        print(f"Qidiruv tarixini saqlashda xatolik: {str(e)}")
+
+    await conn.close()
     return books
 
-# 🚀 Ishga tushirish
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
