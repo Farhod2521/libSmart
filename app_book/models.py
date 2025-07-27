@@ -89,3 +89,30 @@ class BookLike(models.Model):
 
     def __str__(self):
         return f"{self.customer.user.full_name} → {self.book.title}"
+
+
+
+from django.utils import timezone
+
+class SearchHistory(models.Model):
+    customer = models.ForeignKey(
+        Customer, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='search_histories',
+        verbose_name="Foydalanuvchi"
+    )
+    query = models.CharField(max_length=255, verbose_name="Qidiruv matni")
+    searched_at = models.DateTimeField(default=timezone.now, verbose_name="Qidirilgan vaqt")
+    
+    book = models.ForeignKey(
+        Book, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='search_histories',
+        verbose_name="Qidirilgan kitob (agar aniqlansa)"
+    )
+
+    def __str__(self):
+        return f"{self.query} - {self.customer if self.customer else 'Anonim'}"
+
+    class Meta:
+        verbose_name = "Qidiruv tarixi"
+        verbose_name_plural = "Qidiruv tarixlari"
+        ordering = ['-searched_at']
