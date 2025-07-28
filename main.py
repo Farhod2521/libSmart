@@ -51,7 +51,9 @@ async def search_books(
     q: str = Query(..., min_length=1),
     authorization: Optional[str] = Header(None)
 ):
-    async with await get_connection() as conn:
+    conn = None
+    try:
+        conn = await get_connection()
         # Ensure pg_trgm extension is available
         await conn.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
         
@@ -94,27 +96,21 @@ async def search_books(
                 LIMIT 20;
             """
 
-        try:
-            rows = await conn.fetch(query, search_term)
-            books = [
-                BookOut(
-                    id=row['id'],
-                    title_uz=row['title_uz'],
-                    title_ru=row['title_ru'],
-                    title_en=row['title_en'],
-                    description_uz=row['description_uz'],
-                    description_ru=row['description_ru'],
-                    description_en=row['description_en']
-                ) for row in rows
-            ]
-            
-            # Get first book ID if available
-            book_id = rows[0]['id'] if rows else None
-        except Exception as e:
-            raise HTTPException(
-                status_code=500, 
-                detail=f"Database error: {str(e)}"
-            )
+        rows = await conn.fetch(query, search_term)
+        books = [
+            BookOut(
+                id=row['id'],
+                title_uz=row['title_uz'],
+                title_ru=row['title_ru'],
+                title_en=row['title_en'],
+                description_uz=row['description_uz'],
+                description_ru=row['description_ru'],
+                description_en=row['description_en']
+            ) for row in rows
+        ]
+        
+        # Get first book ID if available
+        book_id = rows[0]['id'] if rows else None
 
         # Save search history
         try:
@@ -134,6 +130,14 @@ async def search_books(
             print(f"Search history save error: {str(e)}")
 
         return books
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Database error: {str(e)}"
+        )
+    finally:
+        if conn:
+            await conn.close()
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
