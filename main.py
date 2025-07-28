@@ -5,9 +5,16 @@ from pydantic import BaseModel
 from typing import List, Optional
 import uvicorn
 import datetime
+from jose import jwt
+from jose.exceptions import JWTError
+
+# 🔐 JWT konfiguratsiya
+JWT_SECRET_KEY = "django-secret-key"  # ⛔ bu joyga Django'dagi settings.SECRET_KEY ni yozing
+JWT_ALGORITHM = "HS256"
 
 app = FastAPI()
 
+# ✅ CORS sozlamasi
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,6 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ✅ Postgres sozlamasi
 DATABASE_CONFIG = {
     'user': 'libsmartuser',
     'password': 'libSmart1234',
@@ -24,6 +32,7 @@ DATABASE_CONFIG = {
     'port': 5432
 }
 
+# 📚 Kitob modeli
 class BookOut(BaseModel):
     id: int
     title_uz: str
@@ -33,25 +42,30 @@ class BookOut(BaseModel):
     description_ru: Optional[str]
     description_en: Optional[str]
 
+# 🔌 Bazaga ulanish
 async def get_connection():
     return await asyncpg.connect(**DATABASE_CONFIG)
 
+# ✅ JWT token orqali Customer ID ni olish
 async def get_customer_id_by_token(conn, token: str) -> Optional[int]:
-    print(f"🔍 TOKEN: {token}")
-    row = await conn.fetchrow("""
-        SELECT c.id AS customer_id, u.id as user_id
-        FROM authtoken_token t
-        JOIN app_user_user u ON t.user_id = u.id
-        JOIN app_user_customer c ON c.user_id = u.id
-        WHERE t.key = $1
-    """, token)
-    if row:
-        print(f"✅ USER ID: {row['user_id']} -> CUSTOMER ID: {row['customer_id']}")
-        return row['customer_id']
-    else:
-        print("❌ TOKEN NOT FOUND OR CUSTOMER NOT LINKED")
+    print(f"🔍 JWT TOKEN: {token}")
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        user_id = payload.get("user_id")
+        print(f"✅ DECODED USER ID from JWT: {user_id}")
+    except JWTError as e:
+        print(f"❌ JWT decoding error: {str(e)}")
         return None
 
+    row = await conn.fetchrow("SELECT id FROM app_user_customer WHERE user_id = $1", user_id)
+    if row:
+        print(f"✅ CUSTOMER ID: {row['id']}")
+        return row['id']
+    else:
+        print("❌ USER exists but CUSTOMER not linked")
+        return None
+
+# 🔍 Qidiruv endpoint
 @app.get("/search", response_model=List[BookOut])
 async def search_books(q: str = Query(..., min_length=1), authorization: Optional[str] = Header(None)):
     conn = await get_connection()
@@ -60,12 +74,14 @@ async def search_books(q: str = Query(..., min_length=1), authorization: Optiona
     search_term = q.strip().lower()
     customer_id = None
 
+    # 🧠 Token bor bo‘lsa, dekodlab customer_id olish
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ")[1]
         customer_id = await get_customer_id_by_token(conn, token)
     else:
         print("❌ Authorization header yo'q yoki noto‘g‘ri formatda")
 
+    # 🔎 Kitob qidirish
     if len(search_term) >= 3:
         query = """
             SELECT id, title_uz, title_ru, title_en,
@@ -104,8 +120,7 @@ async def search_books(q: str = Query(..., min_length=1), authorization: Optiona
         await conn.close()
         raise HTTPException(status_code=500, detail=f"Bazada xatolik: {str(e)}")
 
-    books = [BookOut(**{k: v for k, v in dict(row).items() if k != 'sim_score'})
-             for row in rows]
+    books = [BookOut(**{k: v for k, v in dict(row).items() if k != 'sim_score'}) for row in rows]
 
     try:
         book_id = rows[0]['id'] if rows else None
@@ -120,5 +135,6 @@ async def search_books(q: str = Query(..., min_length=1), authorization: Optiona
     await conn.close()
     return books
 
+# 🚀 Ishga tushirish
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
