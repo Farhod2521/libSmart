@@ -36,12 +36,12 @@ class BookOut(BaseModel):
 async def get_connection():
     return await asyncpg.connect(**DATABASE_CONFIG)
 
+# ✅ Token orqali customer_id ni olish
 async def get_customer_id_by_token(conn, token: str) -> Optional[int]:
     row = await conn.fetchrow("""
-        SELECT c.id as customer_id
+        SELECT c.id AS customer_id
         FROM authtoken_token t
-        JOIN app_user_user u ON t.user_id = u.id
-        JOIN app_user_customer c ON c.user_id = u.id
+        JOIN app_user_customer c ON c.user_id = t.user_id
         WHERE t.key = $1
     """, token)
     return row['customer_id'] if row else None
@@ -54,6 +54,7 @@ async def search_books(q: str = Query(..., min_length=1), authorization: Optiona
     search_term = q.strip().lower()
     customer_id = None
 
+    # 🧠 Token bor bo‘lsa — user_id orqali customer_id topamiz
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ")[1]
         customer_id = await get_customer_id_by_token(conn, token)
