@@ -36,77 +36,89 @@ class BookOut(BaseModel):
 async def get_connection():
     return await asyncpg.connect(**DATABASE_CONFIG)
 
-async def get_user_id_by_token(conn, token: str) -> Optional[int]:
-    row = await conn.fetchrow("SELECT user_id FROM authtoken_token WHERE key = $1", token)
-    return row['user_id'] if row else None
+async def get_customer_id_by_token(conn, token: str) -> Optional[int]:
+    print(f"🔍 TOKEN: {token}")
+    row = await conn.fetchrow("""
+        SELECT c.id AS customer_id, u.id as user_id
+        FROM authtoken_token t
+        JOIN app_user_user u ON t.user_id = u.id
+        JOIN app_user_customer c ON c.user_id = u.id
+        WHERE t.key = $1
+    """, token)
+    if row:
+        print(f"✅ USER ID: {row['user_id']} -> CUSTOMER ID: {row['customer_id']}")
+        return row['customer_id']
+    else:
+        print("❌ TOKEN NOT FOUND OR CUSTOMER NOT LINKED")
+        return None
 
 @app.get("/search", response_model=List[BookOut])
 async def search_books(q: str = Query(..., min_length=1), authorization: Optional[str] = Header(None)):
-    conn = None
+    conn = await get_connection()
+    await conn.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
+
+    search_term = q.strip().lower()
+    customer_id = None
+
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+        customer_id = await get_customer_id_by_token(conn, token)
+    else:
+        print("❌ Authorization header yo'q yoki noto‘g‘ri formatda")
+
+    if len(search_term) >= 3:
+        query = """
+            SELECT id, title_uz, title_ru, title_en,
+                   description_uz, description_ru, description_en,
+                   GREATEST(
+                       similarity(LOWER(title_uz), $1),
+                       similarity(LOWER(title_ru), $1),
+                       similarity(LOWER(title_en), $1)
+                   ) as sim_score
+            FROM app_book_book
+            WHERE
+                LOWER(title_uz) LIKE '%' || $1 || '%' OR
+                LOWER(title_ru) LIKE '%' || $1 || '%' OR
+                LOWER(title_en) LIKE '%' || $1 || '%' OR
+                LOWER(title_uz) % $1 OR
+                LOWER(title_ru) % $1 OR
+                LOWER(title_en) % $1
+            ORDER BY sim_score DESC
+            LIMIT 20;
+        """
+    else:
+        query = """
+            SELECT id, title_uz, title_ru, title_en,
+                   description_uz, description_ru, description_en
+            FROM app_book_book
+            WHERE
+                LOWER(title_uz) LIKE $1 || '%' OR
+                LOWER(title_ru) LIKE $1 || '%' OR
+                LOWER(title_en) LIKE $1 || '%'
+            LIMIT 20;
+        """
+
     try:
-        conn = await get_connection()
-        await conn.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
-
-        search_term = q.strip().lower()
-        user_id = None
-
-        if authorization and authorization.startswith("Bearer "):
-            token = authorization.split(" ")[1]
-            user_id = await get_user_id_by_token(conn, token)
-
-        if len(search_term) >= 3:
-            query = """
-                SELECT id, title_uz, title_ru, title_en,
-                       description_uz, description_ru, description_en,
-                       GREATEST(
-                           similarity(LOWER(title_uz), $1),
-                           similarity(LOWER(title_ru), $1),
-                           similarity(LOWER(title_en), $1)
-                       ) as sim_score
-                FROM app_book_book
-                WHERE
-                    LOWER(title_uz) LIKE '%' || $1 || '%' OR
-                    LOWER(title_ru) LIKE '%' || $1 || '%' OR
-                    LOWER(title_en) LIKE '%' || $1 || '%' OR
-                    LOWER(title_uz) % $1 OR
-                    LOWER(title_ru) % $1 OR
-                    LOWER(title_en) % $1
-                ORDER BY sim_score DESC
-                LIMIT 20;
-            """
-        else:
-            query = """
-                SELECT id, title_uz, title_ru, title_en,
-                       description_uz, description_ru, description_en
-                FROM app_book_book
-                WHERE
-                    LOWER(title_uz) LIKE $1 || '%' OR
-                    LOWER(title_ru) LIKE $1 || '%' OR
-                    LOWER(title_en) LIKE $1 || '%'
-                LIMIT 20;
-            """
-
         rows = await conn.fetch(query, search_term)
-        books = [BookOut(**{k: v for k, v in dict(row).items() if k != 'sim_score'})
-                 for row in rows]
-
-        try:
-            book_id = rows[0]['id'] if rows else None
-            await conn.execute("""
-                INSERT INTO app_book_searchhistory (customer_id, query, searched_at, book_id)
-                VALUES ($1, $2, $3, $4)
-            """, user_id, q, datetime.datetime.utcnow(), book_id)
-        except Exception as e:
-            print(f"Qidiruv tarixini saqlashda xatolik: {str(e)}")
-            # Additional error details for debugging
-            print(f"User ID: {user_id}, Query: {q}, Book ID: {book_id}")
-
-        return books
     except Exception as e:
+        await conn.close()
         raise HTTPException(status_code=500, detail=f"Bazada xatolik: {str(e)}")
-    finally:
-        if conn:
-            await conn.close()
+
+    books = [BookOut(**{k: v for k, v in dict(row).items() if k != 'sim_score'})
+             for row in rows]
+
+    try:
+        book_id = rows[0]['id'] if rows else None
+        print(f"📘 QIDIRUV: '{q}' | BOOK ID: {book_id} | CUSTOMER ID: {customer_id}")
+        await conn.execute("""
+            INSERT INTO app_book_searchhistory (customer_id, query, searched_at, book_id)
+            VALUES ($1, $2, $3, $4)
+        """, customer_id, q, datetime.datetime.utcnow(), book_id)
+    except Exception as e:
+        print(f"❌ Qidiruv tarixini saqlashda muammo: {str(e)}")
+
+    await conn.close()
+    return books
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
