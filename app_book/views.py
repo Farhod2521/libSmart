@@ -6,7 +6,7 @@ from .serializers import CategoryBookSerializer, BookSerializer, BookRatingSeria
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 import random
-from app_user.models import Customer
+from app_user.models import Customer,  Notification
 from django.db.models import Avg, Q
 from .pagination import  BookPagination
 
@@ -62,7 +62,16 @@ class BookCreateAPIView(APIView):
     def post(self, request):
         serializer = BookSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            book = serializer.save()
+
+            # 🔔 Yangi kitob haqida barcha mijozlarga bildirishnoma yaratamiz
+            customers = Customer.objects.all()
+            for customer in customers:
+                Notification.objects.create(
+                    customer=customer,
+                    message=f"Yangi kitob qo‘shildi: {book.title_uz}"
+                )
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

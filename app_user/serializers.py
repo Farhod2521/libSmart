@@ -7,7 +7,7 @@ import face_recognition
 from rest_framework import serializers
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
-from .models import User, Customer
+from .models import User, Customer, Notification
 from PIL import Image
 import re
 
@@ -217,3 +217,9 @@ class SearchHistorySerializer(serializers.ModelSerializer):
 
     def get_book_title(self, obj):
         return obj.book.title if obj.book else None
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'message', 'created_at', 'is_read']

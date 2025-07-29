@@ -73,3 +73,15 @@ class Customer(models.Model):
 
 
 
+class Notification(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="notifications")
+    message = models.TextField("Xabar matni")
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False, verbose_name="O'qilganmi?")
+
+    class Meta:
+        verbose_name = "Bildirishnoma"
+        verbose_name_plural = "Bildirishnomalar"
+
+    def __str__(self):
+        return f"{self.customer.user.username} - {self.message[:30]}"

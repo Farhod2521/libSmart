@@ -5,7 +5,7 @@ from .serializers import (
     RegisterSerializer,
     VerifyCodeSerializer,
     PasswordResetRequestSerializer,
-    PasswordResetConfirmSerializer, CustomerProfileSerializer
+    PasswordResetConfirmSerializer, CustomerProfileSerializer, NotificationSerializer
 )
 from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
@@ -147,3 +147,14 @@ class CustomerProfileAPIView(APIView):
 
         serializer = CustomerProfileSerializer(customer_profile)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+
+class NotificationListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        customer = request.user.customer_profile
+        notifications = customer.notifications.all().order_by('-created_at')
+        serializer = NotificationSerializer(notifications, many=True)
+        return Response(serializer.data)

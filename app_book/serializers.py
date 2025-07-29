@@ -11,8 +11,21 @@ class CategoryBookSerializer(serializers.ModelSerializer):
 class BookSerializer(serializers.ModelSerializer):
     class Meta:
         model = Book
-        fields = '__all__'
-
+        fields = [
+            'title_uz', 'title_ru', 'title_en',
+            'creator_uz', 'creator_ru', 'creator_en',
+            'subject_uz', 'subject_ru', 'subject_en',
+            'description_uz', 'description_ru', 'description_en',
+            'publisher_uz', 'publisher_ru', 'publisher_en',
+            'contributor_uz', 'contributor_ru', 'contributor_en',
+            'date', 'format', 'identifier',
+            'relation_uz', 'relation_ru', 'relation_en',
+            'coverage_uz', 'coverage_ru', 'coverage_en',
+            'rights_uz', 'rights_ru', 'rights_en',
+            'language',
+            'image',
+            'file',
+        ]
 
 
 class BookRatingSerializer(serializers.ModelSerializer):
@@ -39,7 +52,7 @@ class BookListSerializer(serializers.ModelSerializer):
             'description_uz', 'description_ru', 'description_en',
             'publisher_uz', 'publisher_ru', 'publisher_en',
             'contributor_uz', 'contributor_ru', 'contributor_en',
-            'date', 'type', 'format', 'identifier',
+            'date', 'format', 'identifier',
             
             'relation_uz', 'relation_ru', 'relation_en',
             'coverage_uz', 'coverage_ru', 'coverage_en',
@@ -72,7 +85,7 @@ class BookDetailSerializer(serializers.ModelSerializer):
             'description_uz', 'description_ru', 'description_en',
             'publisher_uz', 'publisher_ru', 'publisher_en',
             'contributor_uz', 'contributor_ru', 'contributor_en',
-            'date', 'type', 'format', 'identifier',
+            'date', 'format', 'identifier',
             'source_uz', 'source_ru', 'source_en',
             'relation_uz', 'relation_ru', 'relation_en',
             'coverage_uz', 'coverage_ru', 'coverage_en',

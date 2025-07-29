@@ -32,7 +32,7 @@ class Book(models.Model):
     publisher = models.CharField(max_length=255, verbose_name="Nashr etuvchi")
     contributor = models.CharField(max_length=255, blank=True, null=True, verbose_name="Hissa qo‘shganlar")
     date = models.DateField(verbose_name="Sana")
-    type = models.CharField(max_length=100, verbose_name="Resurs turi")
+
     format = models.CharField(max_length=100, verbose_name="Format / Fayl turi")
     identifier = models.URLField(max_length=500, verbose_name="Identifikator / Manzil", blank=True, null=True)
     source = models.CharField(max_length=255, blank=True, null=True, verbose_name="Manba")
