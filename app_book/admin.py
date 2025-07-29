@@ -15,7 +15,7 @@ class CategoryBookAdmin(TranslationAdmin):
 class BookAdmin(TranslationAdmin):
     list_display = ('id', 'title', 'creator', 'publisher', 'date', 'language')
     search_fields = ('title', 'creator', 'publisher', 'subject')
-    list_filter = ('language', 'date', 'type')
+    list_filter = ('language', 'date')
     ordering = ('id',)
 
 
