@@ -40,7 +40,7 @@ class BookListSerializer(serializers.ModelSerializer):
             'publisher_uz', 'publisher_ru', 'publisher_en',
             'contributor_uz', 'contributor_ru', 'contributor_en',
             'date', 'type', 'format', 'identifier',
-            'source_uz', 'source_ru', 'source_en',
+            
             'relation_uz', 'relation_ru', 'relation_en',
             'coverage_uz', 'coverage_ru', 'coverage_en',
             'rights_uz', 'rights_ru', 'rights_en',
