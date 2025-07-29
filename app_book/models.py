@@ -31,10 +31,10 @@ class Book(models.Model):
     description = models.TextField(verbose_name="Annotatsiya")
     publisher = models.CharField(max_length=255, verbose_name="Nashr etuvchi")
     contributor = models.CharField(max_length=255, blank=True, null=True, verbose_name="Hissa qo‘shganlar")
-    date = models.DateField(verbose_name="Sana")
+    date = models.CharField(verbose_name="Sana", max_length=255,)
 
     format = models.CharField(max_length=100, verbose_name="Format / Fayl turi")
-    identifier = models.URLField(max_length=500, verbose_name="Identifikator / Manzil", blank=True, null=True)
+    identifier = models.CharField(max_length=500, verbose_name="Identifikator", blank=True, null=True)
     source = models.CharField(max_length=255, blank=True, null=True, verbose_name="Manba")
     language = models.CharField(max_length=50, verbose_name="Til")
     relation = models.CharField(max_length=255, blank=True, null=True, verbose_name="Fan tarmog'i")
