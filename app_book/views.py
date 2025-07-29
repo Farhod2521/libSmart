@@ -97,10 +97,40 @@ class BookDeleteAPIView(APIView):
 
 
 class RandomBookListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
-        books = list(Book.objects.all())
-        random_books = random.sample(books, min(len(books), 20))  # 20 tadan kam bo‘lsa, mavjudlar chiqadi
-        serializer = BookSerializer(random_books, many=True)
+        user = request.user
+        try:
+            customer = user.customer_profile
+            interests = customer.interests
+        except Customer.DoesNotExist:
+            # Agar profil yo'q bo‘lsa, random kitoblar chiqariladi
+            books = list(Book.objects.all())
+            random_books = random.sample(books, min(len(books), 20))
+            serializer = BookSerializer(random_books, many=True)
+            return Response(serializer.data)
+
+        if interests:
+            interest_list = [interest.strip() for interest in interests.split(',')]
+            query = Q()
+            for interest in interest_list:
+                query |= Q(relation__icontains=interest)
+            matched_books = Book.objects.filter(query).distinct()
+
+            if matched_books.exists():
+                books = list(matched_books)
+                selected_books = random.sample(books, min(len(books), 20))
+            else:
+                # Agar qiziqishlar bo‘yicha hech narsa topilmasa, random kitoblar chiqariladi
+                books = list(Book.objects.all())
+                selected_books = random.sample(books, min(len(books), 20))
+        else:
+            # Agar qiziqishlar bo‘sh bo‘lsa, random kitoblar chiqariladi
+            books = list(Book.objects.all())
+            selected_books = random.sample(books, min(len(books), 20))
+
+        serializer = BookSerializer(selected_books, many=True)
         return Response(serializer.data)
     
 
