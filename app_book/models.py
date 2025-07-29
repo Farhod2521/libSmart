@@ -24,7 +24,6 @@ def validate_file_size(value):
 
 class Book(models.Model):
     category = models.ForeignKey(CategoryBook, on_delete=models.CASCADE, related_name='books', verbose_name="Kategoriya")
-
     title = models.CharField(max_length=255, verbose_name="Sarlavha / Nomi")
     creator = models.CharField(max_length=255, verbose_name="Muallif / Yaratgan shaxs")
     subject = models.CharField(max_length=255, verbose_name="Kalit so‘zlar")
@@ -33,11 +32,10 @@ class Book(models.Model):
     contributor = models.CharField(max_length=255, blank=True, null=True, verbose_name="Hissa qo‘shganlar")
     date = models.DateField(verbose_name="Sana")
     type = models.CharField(max_length=100, verbose_name="Resurs turi")
-    format = models.CharField(max_length=100, verbose_name="Format / Fayl turi")
+    format = models.CharField(max_length=100, verbose_name="Sahifa soni ")
     identifier = models.URLField(max_length=500, verbose_name="Identifikator / Manzil", blank=True, null=True)
-    source = models.CharField(max_length=255, blank=True, null=True, verbose_name="Manba")
     language = models.CharField(max_length=50, verbose_name="Til")
-    relation = models.CharField(max_length=255, blank=True, null=True, verbose_name="Fan tarmog'i")
+    relation = models.CharField(max_length=255,  verbose_name="Fan tarmog'i")
     coverage = models.CharField(max_length=255, blank=True, null=True, verbose_name="Davlat")
     rights = models.CharField(max_length=255, verbose_name="Huquqlar / Litsenziya")
     image = models.FileField(upload_to='books/', validators=[validate_file_size], verbose_name="Kitob rasmi", blank=True, null=True)
