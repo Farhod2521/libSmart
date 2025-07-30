@@ -80,7 +80,7 @@ class BookDetailSerializer(serializers.ModelSerializer):
         model = Book
         fields = [
             'id',
-            "category_id",
+            "category",
             'title_uz', 'title_ru', 'title_en',
             'creator_uz', 'creator_ru', 'creator_en',
             'subject_uz', 'subject_ru', 'subject_en',
