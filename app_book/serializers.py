@@ -96,7 +96,8 @@ class BookDetailSerializer(serializers.ModelSerializer):
             'file',
             'average_rating',
             'rating_count',
-            'ratings'
+            'ratings',
+            "download_count",
         ]
 
     def get_rating_count(self, obj):
