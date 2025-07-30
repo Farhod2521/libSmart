@@ -291,5 +291,4 @@ class BookDownloadAPIView(APIView):
         book.download_count += 1
         book.save(update_fields=["download_count"])
 
-        response = FileResponse(book.file.open(), as_attachment=True, filename=book.file.name.split("/")[-1])
-        return response
+        return FileResponse(book.file.open(), as_attachment=True, filename=book.file.name.split("/")[-1])
