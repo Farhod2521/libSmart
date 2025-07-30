@@ -105,10 +105,11 @@ class BookDetailSerializer(serializers.ModelSerializer):
         return obj.ratings.count()
 
 class BookLikeSerializer(serializers.ModelSerializer):
+    book = BookDetailSerializer(read_only=True)  # Kitob haqidagi barcha ma’lumotlarni qo‘shish
+
     class Meta:
         model = BookLike
         fields = ['id', 'book', 'created_at']
-
 
 
 
