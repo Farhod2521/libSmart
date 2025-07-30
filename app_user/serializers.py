@@ -213,16 +213,13 @@ class CustomerSerializer(serializers.ModelSerializer):
         ]
 
 from app_book.models import SearchHistory
-
+from app_book.serializers import BookDetailSerializer
 class SearchHistorySerializer(serializers.ModelSerializer):
-    book_title = serializers.SerializerMethodField()
+    book = BookDetailSerializer(read_only=True)  # To‘liq kitob ma’lumotlarini qo‘shamiz
 
     class Meta:
         model = SearchHistory
-        fields = ['id', 'query', 'searched_at', 'book', 'book_title']
-
-    def get_book_title(self, obj):
-        return obj.book.title if obj.book else None
+        fields = ['id', 'query', 'searched_at', 'book']
 
 
 class NotificationSerializer(serializers.ModelSerializer):
