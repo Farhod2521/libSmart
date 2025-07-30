@@ -57,7 +57,7 @@ class BookListSerializer(serializers.ModelSerializer):
             
             'relation_uz', 'relation_ru', 'relation_en',
             'coverage_uz', 'coverage_ru', 'coverage_en',
-            'rights_uz', 'rights_ru', 'rights_en',
+            'rights',
             'language',
             'image',
             'file',
@@ -90,7 +90,7 @@ class BookDetailSerializer(serializers.ModelSerializer):
             'source_uz', 'source_ru', 'source_en',
             'relation_uz', 'relation_ru', 'relation_en',
             'coverage_uz', 'coverage_ru', 'coverage_en',
-            'rights_uz', 'rights_ru', 'rights_en',
+            'rights',
             'language',
             'image',
             'file',
