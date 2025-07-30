@@ -204,7 +204,13 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             'occupation',
             'interests',
         ]
-
+class CustomerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = [
+            'birth_date', 'gender', 'language', 'state', 'region',
+            'education', 'occupation', 'interests', 'face_encoding'
+        ]
 
 from app_book.models import SearchHistory
 

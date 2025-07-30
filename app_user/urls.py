@@ -3,7 +3,8 @@ from .views import (
     RegisterAPIView,
     VerifyCodeAPIView,
     PasswordResetRequestAPIView,
-    PasswordResetConfirmAPIView, LoginWithPhoneAPIView, FaceLoginAPIView, CustomerProfileAPIView, NotificationListAPIView
+    PasswordResetConfirmAPIView, LoginWithPhoneAPIView, FaceLoginAPIView, CustomerProfileAPIView, NotificationListAPIView,
+    CustomerProfileUpdateAPIView
 )
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -22,5 +23,6 @@ urlpatterns = [
     path('customer/search-history/', SearchHistoryListAPIView.as_view(), name='search-history-list'),
 
     path('customer/notifications/', NotificationListAPIView.as_view(), name='notification-list'),
+    path('customer/profile-update/', CustomerProfileUpdateAPIView.as_view(), name='customer-profile-update'),
 
 ]
