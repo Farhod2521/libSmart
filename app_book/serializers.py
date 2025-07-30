@@ -22,7 +22,7 @@ class BookSerializer(serializers.ModelSerializer):
             'date', 'format', 'identifier',
             'relation_uz', 'relation_ru', 'relation_en',
             'coverage_uz', 'coverage_ru', 'coverage_en',
-            'rights_uz', 'rights_ru', 'rights_en',
+            'rights',
             'language',
             'image',
             'file',
