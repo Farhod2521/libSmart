@@ -9,8 +9,10 @@ import random
 from app_user.models import Customer,  Notification
 from django.db.models import Avg, Q
 from .pagination import  BookPagination
-
-
+from django.http import FileResponse, Http404
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 
 class CategoryBookListAPIView(APIView):
     def get(self, request):
@@ -270,3 +272,24 @@ class BookLikeDeleteAPIView(APIView):
 
 
 
+class BookDownloadAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        try:
+            book = Book.objects.get(pk=pk)
+        except Book.DoesNotExist:
+            raise Http404("Kitob topilmadi.")
+
+        if not book.is_download_allowed:
+            return Response({"detail": "Bu kitobni yuklab olishga ruxsat berilmagan."}, status=status.HTTP_403_FORBIDDEN)
+
+        if not book.file:
+            return Response({"detail": "Bu kitobda fayl mavjud emas."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Yuklab olish sonini oshirish
+        book.download_count += 1
+        book.save(update_fields=["download_count"])
+
+        response = FileResponse(book.file.open(), as_attachment=True, filename=book.file.name.split("/")[-1])
+        return response
