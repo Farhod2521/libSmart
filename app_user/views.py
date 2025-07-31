@@ -90,7 +90,7 @@ import cv2
 import numpy as np
 
 
-class LivenessDetectionAPIView(APIView):
+class FaceLoginAPIView(APIView):
     def post(self, request):
         # 3 ta ketma-ket rasm olish talab qilinadi
         images = request.data.get('images', [])
