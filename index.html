@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Face Registration & Login</title>
+    <title>Face Login</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -23,56 +23,6 @@
             text-align: center;
             color: #333;
         }
-        .tabs {
-            display: flex;
-            margin-bottom: 20px;
-        }
-        .tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            background-color: #eee;
-            border: none;
-            flex: 1;
-            text-align: center;
-        }
-        .tab.active {
-            background-color: #4CAF50;
-            color: white;
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        input, select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            width: 100%;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
         .video-container {
             position: relative;
             width: 100%;
@@ -82,23 +32,6 @@
             width: 100%;
             background-color: #000;
             border-radius: 4px;
-        }
-        .capture-btn {
-            position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #f44336;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            font-size: 18px;
-            cursor: pointer;
-        }
-        .capture-btn:hover {
-            background-color: #d32f2f;
         }
         canvas {
             display: none;
@@ -116,297 +49,154 @@
             background-color: #f2dede;
             color: #a94442;
         }
+        .status {
+            text-align: center;
+            font-size: 18px;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #e7f3fe;
+            color: #31708f;
+        }
     </style>
 </head>
 <body>
-    <h1>Face Registration & Login</h1>
-    
-    <div class="tabs">
-        <button class="tab active" onclick="openTab('register')">Register</button>
-        <button class="tab" onclick="openTab('login')">Face Login</button>
-    </div>
-    
-    <div id="register" class="tab-content active">
-        <div class="container">
-            <h2>Registration Form</h2>
-            <form id="registrationForm">
-                <div class="form-group">
-                    <label for="phone">Phone</label>
-                    <input type="text" id="phone" name="phone" value="+998901234567" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" value="testpassword123" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="full_name">Full Name</label>
-                    <input type="text" id="full_name" name="full_name" value="John Doe" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" name="email" value="john.doe@example.com" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="birth_date">Birth Date</label>
-                    <input type="date" id="birth_date" name="birth_date" value="1990-01-01" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="gender">Gender</label>
-                    <select id="gender" name="gender" required>
-                        <option value="male" selected>Male</option>
-                        <option value="female">Female</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="language">Language</label>
-                    <input type="text" id="language" name="language" value="English" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="state">State</label>
-                    <input type="text" id="state" name="state" value="California" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="region">Region</label>
-                    <input type="text" id="region" name="region" value="Los Angeles" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="education">Education</label>
-                    <input type="text" id="education" name="education" value="Bachelor's Degree" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="occupation">Occupation</label>
-                    <input type="text" id="occupation" name="occupation" value="Software Developer" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="interests">Interests (comma separated)</label>
-                    <input type="text" id="interests" name="interests" value="programming,reading,sports" required>
-                </div>
-                
-                <div class="form-group">
-                    <label>Face Image</label>
-                    <div class="video-container">
-                        <video id="registerVideo" autoplay></video>
-                        <button type="button" class="capture-btn" onclick="captureRegisterImage()">📷</button>
-                    </div>
-                    <canvas id="registerCanvas"></canvas>
-                </div>
-                
-                <button type="button" onclick="submitRegistration()">Register</button>
-            </form>
-            
-            <div id="registerResult" class="result" style="display: none;"></div>
+    <div class="container">
+        <h1>Face Login</h1>
+        <div id="statusMessage" class="status">Kamera ishga tushmoqda...</div>
+        
+        <div class="video-container">
+            <video id="loginVideo" autoplay playsinline></video>
         </div>
+        <canvas id="loginCanvas"></canvas>
+        
+        <div id="loginResult" class="result" style="display: none;"></div>
     </div>
-    
-    <div id="login" class="tab-content">
-        <div class="container">
-            <h2>Face Login</h2>
-            <div class="video-container">
-                <video id="loginVideo" autoplay></video>
-                <button type="button" class="capture-btn" onclick="captureLoginImage()">📷</button>
-            </div>
-            <canvas id="loginCanvas"></canvas>
-            
-            <div id="loginResult" class="result" style="display: none;"></div>
-        </div>
-    </div>
-    
+
     <script>
-        // Tab switching
-        function openTab(tabName) {
-            const tabs = document.getElementsByClassName('tab-content');
-            for (let i = 0; i < tabs.length; i++) {
-                tabs[i].classList.remove('active');
-            }
-            
-            const tabButtons = document.getElementsByClassName('tab');
-            for (let i = 0; i < tabButtons.length; i++) {
-                tabButtons[i].classList.remove('active');
-            }
-            
-            document.getElementById(tabName).classList.add('active');
-            event.currentTarget.classList.add('active');
-            
-            // Initialize video when switching to a tab
-            if (tabName === 'register') {
-                initRegisterCamera();
-            } else if (tabName === 'login') {
-                initLoginCamera();
-            }
-        }
+        // Global o'zgaruvchilar
+        let loginStream = null;
+        let detectionInterval = null;
+        let lastDetectionTime = 0;
+        const detectionCooldown = 2000; // 2 soniyada bir tekshirish
         
-        // Registration camera
-        let registerStream = null;
-        
-        function initRegisterCamera() {
-            if (registerStream) {
-                return;
-            }
-            
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(function(stream) {
-                    const video = document.getElementById('registerVideo');
-                    video.srcObject = stream;
-                    registerStream = stream;
-                })
-                .catch(function(err) {
-                    console.error("Error accessing camera: ", err);
-                    alert("Could not access the camera. Please make sure you have granted camera permissions.");
+        // Kamerani ishga tushirish
+        async function initLoginCamera() {
+            try {
+                loginStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: 640, 
+                        height: 480,
+                        facingMode: 'user' 
+                    } 
                 });
+                
+                const video = document.getElementById('loginVideo');
+                video.srcObject = loginStream;
+                document.getElementById('statusMessage').textContent = "Kamera tayyor. Yuzingizni kameraga qarating...";
+                
+                // Avtomatik yuz tanishni boshlash
+                startFaceDetection();
+            } catch (err) {
+                console.error("Kameraga kirish xatosi: ", err);
+                document.getElementById('statusMessage').textContent = "Kameraga kirish mumkin emas. Iltimos, ruxsat bering.";
+                document.getElementById('statusMessage').className = "status error";
+            }
         }
         
-        function captureRegisterImage() {
-            const video = document.getElementById('registerVideo');
-            const canvas = document.getElementById('registerCanvas');
+        // Yuz tanishni boshlash
+        function startFaceDetection() {
+            // Har 500ms da bir tekshirish
+            detectionInterval = setInterval(detectFaceAndLogin, 500);
+        }
+        
+        // Yuzni tanish va login qilish
+        async function detectFaceAndLogin() {
+            const now = Date.now();
+            if (now - lastDetectionTime < detectionCooldown) {
+                return; // Cooldown davomida tekshirmaymiz
+            }
+            
+            const video = document.getElementById('loginVideo');
+            const canvas = document.getElementById('loginCanvas');
             const context = canvas.getContext('2d');
             
+            // Video o'lchamlarini canvasga o'tkazish
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        }
-        
-        function submitRegistration() {
-            const canvas = document.getElementById('registerCanvas');
-            if (canvas.width === 0) {
-                alert("Please capture your face image first");
-                return;
-            }
             
-            const imageData = canvas.toDataURL('image/jpeg');
+            // Rasmni base64 formatiga o'tkazish
+            const imageData = canvas.toDataURL('image/jpeg').split(',')[1];
             
-            // Get all form data
-            const formData = {
-                phone: document.getElementById('phone').value,
-                password: document.getElementById('password').value,
-                full_name: document.getElementById('full_name').value,
-                email: document.getElementById('email').value,
-                birth_date: document.getElementById('birth_date').value,
-                gender: document.getElementById('gender').value,
-                language: document.getElementById('language').value,
-                state: document.getElementById('state').value,
-                region: document.getElementById('region').value,
-                education: document.getElementById('education').value,
-                occupation: document.getElementById('occupation').value,
-                interests: document.getElementById('interests').value.split(','),
-                image_base64: imageData
-            };
-            
-            // Send to API
-            fetch('https://api.jetmind.uz/api/user/customer/register/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData)
-            })
-            .then(response => response.json())
-            .then(data => {
-                const resultDiv = document.getElementById('registerResult');
-                resultDiv.style.display = 'block';
+            try {
+                document.getElementById('statusMessage').textContent = "Yuz tanish jarayonida...";
                 
-                if (data.message) {
-                    resultDiv.className = 'result success';
-                    resultDiv.innerHTML = `Success: ${data.message}`;
-                } else if (data.error) {
-                    resultDiv.className = 'result error';
-                    resultDiv.innerHTML = `Error: ${JSON.stringify(data)}`;
-                } else {
-                    resultDiv.className = 'result error';
-                    resultDiv.innerHTML = `Error: ${JSON.stringify(data)}`;
-                }
-            })
-            .catch((error) => {
-                const resultDiv = document.getElementById('registerResult');
-                resultDiv.style.display = 'block';
-                resultDiv.className = 'result error';
-                resultDiv.innerHTML = `Error: ${error.message}`;
-            });
-        }
-        
-        // Login camera
-        let loginStream = null;
-        
-        function initLoginCamera() {
-            if (loginStream) {
-                return;
-            }
-            
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(function(stream) {
-                    const video = document.getElementById('loginVideo');
-                    video.srcObject = stream;
-                    loginStream = stream;
-                })
-                .catch(function(err) {
-                    console.error("Error accessing camera: ", err);
-                    alert("Could not access the camera. Please make sure you have granted camera permissions.");
+                const response = await fetch('https://api.jetmind.uz/api/user/customer/face-login/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image_base64: imageData
+                    })
                 });
+                
+                if (!response.ok) {
+                    throw new Error('Server javob bermadi');
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    // Yuz topilmagan holat
+                    document.getElementById('statusMessage').textContent = "Yuz aniqlanmadi. Iltimos, to'g'ri qarang.";
+                    document.getElementById('statusMessage').className = "status error";
+                } else {
+                    // Muvaffaqiyatli login
+                    lastDetectionTime = Date.now();
+                    clearInterval(detectionInterval);
+                    
+                    document.getElementById('statusMessage').textContent = "Tizimga kirish muvaffaqiyatli!";
+                    document.getElementById('statusMessage').className = "status success";
+                    
+                    // Foydalanuvchi ma'lumotlarini ko'rsatish
+                    const resultDiv = document.getElementById('loginResult');
+                    resultDiv.style.display = 'block';
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h3>Xush kelibsiz, ${data.user.full_name}!</h3>
+                        <p>Telefon: ${data.user.phone}</p>
+                        <p>Email: ${data.user.email}</p>
+                    `;
+                    
+                    // Kamerani to'xtatish
+                    stopCamera();
+                }
+            } catch (error) {
+                console.error('Xato:', error);
+                document.getElementById('statusMessage').textContent = "Xato yuz berdi. Qayta urinib ko'ring.";
+                document.getElementById('statusMessage').className = "status error";
+            }
         }
         
-        function captureLoginImage() {
-    const video = document.getElementById('loginVideo');
-    const canvas = document.getElementById('loginCanvas');
-    const context = canvas.getContext('2d');
-    
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    // Base64 ni to'g'ri olish uchun:
-    const imageData = canvas.toDataURL('image/jpeg').split(',')[1]; // Faqat base64 qismini olamiz
-    
-    // Send to API
-    fetch('https://api.jetmind.uz/api/user/customer/face-login/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            image_base64: imageData  // Faqat base64 qismini yuboramiz
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
+        // Kamerani to'xtatish
+        function stopCamera() {
+            if (loginStream) {
+                loginStream.getTracks().forEach(track => track.stop());
+                loginStream = null;
+            }
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
         }
-        return response.json();
-    })
-    .then(data => {
-        // ... qolgan kod
-    })
-    .catch((error) => {
-        console.error('Error:', error);
-        const resultDiv = document.getElementById('loginResult');
-        resultDiv.style.display = 'block';
-        resultDiv.className = 'result error';
-        resultDiv.innerHTML = `Error: ${error.message}`;
-    });
-}
-        // Initialize register camera on page load
-        window.onload = function() {
-            initRegisterCamera();
-            
-            // Stop all streams when leaving page
-            window.addEventListener('beforeunload', function() {
-                if (registerStream) {
-                    registerStream.getTracks().forEach(track => track.stop());
-                }
-                if (loginStream) {
-                    loginStream.getTracks().forEach(track => track.stop());
-                }
-            });
-        };
+        
+        // Sahifa yuklanganda kamera ishga tushsin
+        window.addEventListener('DOMContentLoaded', initLoginCamera);
+        
+        // Sahifadan chiqishda resurslarni tozalash
+        window.addEventListener('beforeunload', stopCamera);
     </script>
 </body>
 </html>

@@ -92,46 +92,67 @@ import numpy as np
 
 class FaceLoginAPIView(APIView):
     def post(self, request):
-        # 3 ta ketma-ket rasm olish talab qilinadi
-        images = request.data.get('images', [])
-        if len(images) < 3:
+        # Faqat 1 ta rasm qabul qilamiz
+        image_base64 = request.data.get("image_base64")
+        
+        if not image_base64:
             return Response(
-                {"error": "Kamida 3 ta rasm yuborishingiz kerak"}, 
+                {"error": "Rasm yuborilmadi"}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Rasmlarni tekshirish
         try:
-            # 1. Harakatni aniqlash
-            if not self.detect_movement(images):
+            # Rasmni qayta ishlash
+            img = self.base64_to_image(image_base64)
+            
+            # 1. Yuzni aniqlash
+            face_locations = face_recognition.face_locations(img)
+            if not face_locations:
                 return Response(
-                    {"error": "Harakat aniqlanmadi. Iltimos, bosh harakat qiling"},
+                    {"error": "Yuz aniqlanmadi. Iltimos, to'g'ri qarang"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
-            # 2. Yuz pozitsiyasini tekshirish
-            if not self.check_face_consistency(images):
+            
+            # 2. Yuz encodinglarini olish
+            face_encodings = face_recognition.face_encodings(img, face_locations)
+            if not face_encodings:
                 return Response(
-                    {"error": "Yuz pozitsiyasi noto'g'ri. Iltimos, to'g'ri turib oling"},
+                    {"error": "Yuz xususiyatlari aniqlanmadi"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
-            # 3. Blink (ko'z ochish-yumish) aniqlash
-            if not self.detect_blink(images):
+            
+            unknown_encoding = face_encodings[0]
+            
+            # 3. Liveness tekshiruvi (oddiy versiya)
+            if not self.check_liveness(img):
                 return Response(
-                    {"error": "Ko'z qimirlashi aniqlanmadi. Iltimos, ko'zingizni bir marta yuming"},
+                    {"error": "Hayotiy belgilar aniqlanmadi"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
-            # Agar barcha testlardan o'tsa
-            return Response(
-                {"success": "Hayotiy belgilar tasdiqlandi. Face login davom ettirilishi mumkin"},
-                status=status.HTTP_200_OK
-            )
-
+            
+            # 4. Bazadagi foydalanuvchilarni tekshirish
+            user = self.find_matching_user(unknown_encoding)
+            if not user:
+                return Response(
+                    {"error": "Foydalanuvchi topilmadi"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # 5. Login qilish
+            login(request, user)
+            return Response({
+                "success": "Muvaffaqiyatli kirish",
+                "user": {
+                    "id": user.id,
+                    "full_name": user.full_name,
+                    "phone": user.phone,
+                    "email": user.email,
+                }
+            }, status=status.HTTP_200_OK)
+            
         except Exception as e:
             return Response(
-                {"error": f"Liveness detection xatosi: {str(e)}"},
+                {"error": f"Xato yuz berdi: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -144,58 +165,44 @@ class FaceLoginAPIView(APIView):
         image = Image.open(io.BytesIO(image_data))
         return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
-    def detect_movement(self, images):
-        """Rasmlar orasidagi harakatni aniqlash"""
-        # Birinchi va oxirgi rasmlarni solishtirish
-        img1 = self.base64_to_image(images[0])
-        img2 = self.base64_to_image(images[-1])
+    def check_liveness(self, image):
+        """Oddiy liveness tekshiruvi"""
+        # 1. Yuz joylashuvi va o'lchami
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
         
-        # Farqni hisoblash
-        diff = cv2.absdiff(img1, img2)
-        gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-        _, threshold = cv2.threshold(gray, 25, 255, cv2.THRESH_BINARY)
+        if len(faces) == 0:
+            return False
         
-        # O'zgarishlar soni
-        change_pixels = np.sum(threshold) / 255
-        return change_pixels > 500  # Empirik qiymat
-
-    def check_face_consistency(self, images):
-        """Barcha rasmlarda bir xil yuz borligini tekshirish"""
-        face_encodings = []
+        # 2. Ko'zlar mavjudligi
+        eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+        eyes = eye_cascade.detectMultiScale(gray, 1.1, 4)
         
-        for img_base64 in images:
-            img = self.base64_to_image(img_base64)
-            encodings = face_recognition.face_encodings(img)
-            
-            if not encodings:
-                return False
-                
-            face_encodings.append(encodings[0])
+        if len(eyes) < 2:
+            return False
         
-        # Barcha yuzlar o'rtasidagi o'xshashlik
-        for i in range(1, len(face_encodings)):
-            distance = face_recognition.face_distance([face_encodings[0]], face_encodings[i])[0]
-            if distance > 0.6:  # Juda farq qiladi
-                return False
-                
+        # 3. Yuz teksturasi analizi (oddiy versiya)
+        # Haqiqiy loyihada bu aniqroq bo'lishi kerak
         return True
 
-    def detect_blink(self, images):
-        """Ketma-ket rasmlarda ko'z yumish harakatini aniqlash"""
-        eye_status = []
+    def find_matching_user(self, unknown_encoding):
+        """Bazadan mos keladigan foydalanuvchini qidirish"""
+        customers = Customer.objects.exclude(face_encoding__isnull=True).exclude(face_encoding="")
         
-        for img_base64 in images:
-            img = self.base64_to_image(img_base64)
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            
-            # Ko'zni aniqlash (haarcascade yordamida)
-            eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
-            eyes = eye_cascade.detectMultiScale(gray, 1.1, 4)
-            
-            eye_status.append(len(eyes) < 2)  # Agar 2 ko'z aniqlanmasa (yumilgan)
+        for customer in customers:
+            try:
+                known_encoding = np.array(json.loads(customer.face_encoding))
+                distance = face_recognition.face_distance([known_encoding], unknown_encoding)[0]
+                
+                # 0.6 - standart masofa, loyihangizga qarab o'zgartirishingiz mumkin
+                if distance < 0.6:
+                    return customer.user
+            except Exception as e:
+                print(f"Xato customer {customer.id}: {str(e)}")
+                continue
         
-        # Kamida bir marta ko'z yumilgan bo'lishi kerak
-        return any(eye_status)
+        return None
 
 
 class CustomerProfileAPIView(APIView):
