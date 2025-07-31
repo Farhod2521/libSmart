@@ -138,16 +138,20 @@ class FaceLoginAPIView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
             
-            # 5. Login qilish
+            # 5. Login qilish va JWT token yaratish
             login(request, user)
+            refresh = RefreshToken.for_user(user)
+            access_token = refresh.access_token
+            access_token.set_exp(lifetime=timedelta(hours=13))  # Token muddati
+            expires_in = timedelta(hours=13).total_seconds()
+
             return Response({
-                "success": "Muvaffaqiyatli kirish",
-                "user": {
-                    "id": user.id,
-                    "full_name": user.full_name,
-                    "phone": user.phone,
-                    "email": user.email,
-                }
+                'access_token': str(access_token),
+                'refresh_token': str(refresh),
+                'expires_in': expires_in,
+                'phone': user.phone,
+                'full_name': user.full_name,
+                'message': '✅ Tizimga muvaffaqiyatli kirildi!'
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
