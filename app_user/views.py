@@ -86,74 +86,116 @@ class LoginWithPhoneAPIView(APIView):
 
 import re
 
-class FaceLoginAPIView(APIView):
+import cv2
+import numpy as np
+
+
+class LivenessDetectionAPIView(APIView):
     def post(self, request):
-        image_base64 = request.data.get("image_base64")
+        # 3 ta ketma-ket rasm olish talab qilinadi
+        images = request.data.get('images', [])
+        if len(images) < 3:
+            return Response(
+                {"error": "Kamida 3 ta rasm yuborishingiz kerak"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        if not image_base64:
-            return Response({"error": "Rasm yuborilmadi."}, status=status.HTTP_400_BAD_REQUEST)
-
+        # Rasmlarni tekshirish
         try:
-            # Base64 ni tozalash
-            if "base64," in image_base64:
-                image_base64 = image_base64.split("base64,")[1]
-            
-            # Bo'sh joylarni olib tashlash
-            image_base64 = re.sub(r'\s+', '', image_base64)
-            
-            # Base64 dekod qilish
-            image_bytes = base64.b64decode(image_base64)
-            image_file = io.BytesIO(image_bytes)
-            
-            # Rasmni yuklash
-            image_np = face_recognition.load_image_file(image_file)
-            
-            # Yuzlarni aniqlash
-            face_locations = face_recognition.face_locations(image_np)
-            if not face_locations:
-                return Response({"error": "Yuz aniqlanmadi. Iltimos, yuzingizni to'g'ri joylashtiring."}, status=status.HTTP_400_BAD_REQUEST)
-            
-            unknown_encodings = face_recognition.face_encodings(image_np, face_locations)
-            if not unknown_encodings:
-                return Response({"error": "Yuz xususiyatlari aniqlanmadi."}, status=status.HTTP_400_BAD_REQUEST)
+            # 1. Harakatni aniqlash
+            if not self.detect_movement(images):
+                return Response(
+                    {"error": "Harakat aniqlanmadi. Iltimos, bosh harakat qiling"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-            unknown_encoding = unknown_encodings[0]
+            # 2. Yuz pozitsiyasini tekshirish
+            if not self.check_face_consistency(images):
+                return Response(
+                    {"error": "Yuz pozitsiyasi noto'g'ri. Iltimos, to'g'ri turib oling"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-            # Barcha mijozlarni tekshirish
-            customers = Customer.objects.exclude(face_encoding__isnull=True).exclude(face_encoding="")
-            best_match = None
-            best_distance = 0.6  # Standart masofa
+            # 3. Blink (ko'z ochish-yumish) aniqlash
+            if not self.detect_blink(images):
+                return Response(
+                    {"error": "Ko'z qimirlashi aniqlanmadi. Iltimos, ko'zingizni bir marta yuming"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-            for customer in customers:
-                try:
-                    known_encoding = np.array(json.loads(customer.face_encoding))
-                    distance = face_recognition.face_distance([known_encoding], unknown_encoding)[0]
-                    
-                    if distance < best_distance:
-                        best_distance = distance
-                        best_match = customer
-                except Exception as e:
-                    print(f"Error processing customer {customer.id}: {str(e)}")
-                    continue
-
-            if best_match:
-                login(request, best_match.user)
-                return Response({
-                    "message": "Tizimga muvaffaqiyatli kirildi.",
-                    "user": {
-                        "id": best_match.user.id,
-                        "full_name": best_match.user.full_name,
-                        "phone": best_match.user.phone,
-                        "email": best_match.user.email,
-                    },
-                    "confidence": 1 - best_distance
-                }, status=status.HTTP_200_OK)
-
-            return Response({"error": "Yuz hech bir foydalanuvchiga mos kelmadi."}, status=status.HTTP_401_UNAUTHORIZED)
+            # Agar barcha testlardan o'tsa
+            return Response(
+                {"success": "Hayotiy belgilar tasdiqlandi. Face login davom ettirilishi mumkin"},
+                status=status.HTTP_200_OK
+            )
 
         except Exception as e:
-            print(f"Face login error: {str(e)}")
-            return Response({"error": f"Yuz tanish jarayonida xatolik yuz berdi: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": f"Liveness detection xatosi: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def base64_to_image(self, image_base64):
+        """Base64 ni OpenCV formatiga o'tkazish"""
+        if "base64," in image_base64:
+            image_base64 = image_base64.split("base64,")[1]
+        
+        image_data = base64.b64decode(image_base64)
+        image = Image.open(io.BytesIO(image_data))
+        return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+    def detect_movement(self, images):
+        """Rasmlar orasidagi harakatni aniqlash"""
+        # Birinchi va oxirgi rasmlarni solishtirish
+        img1 = self.base64_to_image(images[0])
+        img2 = self.base64_to_image(images[-1])
+        
+        # Farqni hisoblash
+        diff = cv2.absdiff(img1, img2)
+        gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
+        _, threshold = cv2.threshold(gray, 25, 255, cv2.THRESH_BINARY)
+        
+        # O'zgarishlar soni
+        change_pixels = np.sum(threshold) / 255
+        return change_pixels > 500  # Empirik qiymat
+
+    def check_face_consistency(self, images):
+        """Barcha rasmlarda bir xil yuz borligini tekshirish"""
+        face_encodings = []
+        
+        for img_base64 in images:
+            img = self.base64_to_image(img_base64)
+            encodings = face_recognition.face_encodings(img)
+            
+            if not encodings:
+                return False
+                
+            face_encodings.append(encodings[0])
+        
+        # Barcha yuzlar o'rtasidagi o'xshashlik
+        for i in range(1, len(face_encodings)):
+            distance = face_recognition.face_distance([face_encodings[0]], face_encodings[i])[0]
+            if distance > 0.6:  # Juda farq qiladi
+                return False
+                
+        return True
+
+    def detect_blink(self, images):
+        """Ketma-ket rasmlarda ko'z yumish harakatini aniqlash"""
+        eye_status = []
+        
+        for img_base64 in images:
+            img = self.base64_to_image(img_base64)
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            
+            # Ko'zni aniqlash (haarcascade yordamida)
+            eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+            eyes = eye_cascade.detectMultiScale(gray, 1.1, 4)
+            
+            eye_status.append(len(eyes) < 2)  # Agar 2 ko'z aniqlanmasa (yumilgan)
+        
+        # Kamida bir marta ko'z yumilgan bo'lishi kerak
+        return any(eye_status)
 
 
 class CustomerProfileAPIView(APIView):
