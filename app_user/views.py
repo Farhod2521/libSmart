@@ -92,43 +92,66 @@ class FaceLoginAPIView(APIView):
             return Response({"error": "Rasm yuborilmadi."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            # Base64 ni tozalash
+            if "base64," in image_base64:
+                image_base64 = image_base64.split("base64,")[1]
+            
+            # Bo'sh joylarni olib tashlash
+            image_base64 = re.sub(r'\s+', '', image_base64)
+            
+            # Base64 dekod qilish
             image_bytes = base64.b64decode(image_base64)
             image_file = io.BytesIO(image_bytes)
+            
+            # Rasmni yuklash
             image_np = face_recognition.load_image_file(image_file)
-            unknown_encodings = face_recognition.face_encodings(image_np)
+            
+            # Yuzlarni aniqlash
+            face_locations = face_recognition.face_locations(image_np)
+            if not face_locations:
+                return Response({"error": "Yuz aniqlanmadi. Iltimos, yuzingizni to'g'ri joylashtiring."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            unknown_encodings = face_recognition.face_encodings(image_np, face_locations)
+            if not unknown_encodings:
+                return Response({"error": "Yuz xususiyatlari aniqlanmadi."}, status=status.HTTP_400_BAD_REQUEST)
+
+            unknown_encoding = unknown_encodings[0]
+
+            # Barcha mijozlarni tekshirish
+            customers = Customer.objects.exclude(face_encoding__isnull=True).exclude(face_encoding="")
+            best_match = None
+            best_distance = 0.6  # Standart masofa
+
+            for customer in customers:
+                try:
+                    known_encoding = np.array(json.loads(customer.face_encoding))
+                    distance = face_recognition.face_distance([known_encoding], unknown_encoding)[0]
+                    
+                    if distance < best_distance:
+                        best_distance = distance
+                        best_match = customer
+                except Exception as e:
+                    print(f"Error processing customer {customer.id}: {str(e)}")
+                    continue
+
+            if best_match:
+                login(request, best_match.user)
+                return Response({
+                    "message": "Tizimga muvaffaqiyatli kirildi.",
+                    "user": {
+                        "id": best_match.user.id,
+                        "full_name": best_match.user.full_name,
+                        "phone": best_match.user.phone,
+                        "email": best_match.user.email,
+                    },
+                    "confidence": 1 - best_distance
+                }, status=status.HTTP_200_OK)
+
+            return Response({"error": "Yuz hech bir foydalanuvchiga mos kelmadi."}, status=status.HTTP_401_UNAUTHORIZED)
+
         except Exception as e:
-            return Response({"error": "Yuz rasmni o‘qib bo‘lmadi."}, status=status.HTTP_400_BAD_REQUEST)
-
-        if not unknown_encodings:
-            return Response({"error": "Yuz aniqlanmadi."}, status=status.HTTP_400_BAD_REQUEST)
-
-        unknown_encoding = unknown_encodings[0]
-
-        # 🔍 Barcha mijozlarning encodinglarini tekshiramiz
-        customers = Customer.objects.exclude(face_encoding__isnull=True).exclude(face_encoding="")
-
-        for customer in customers:
-            try:
-                known_encoding = np.array(json.loads(customer.face_encoding))
-                match = face_recognition.compare_faces([known_encoding], unknown_encoding)[0]
-
-                if match:
-                    # ✅ Login qilish
-                    login(request, customer.user)
-                    return Response({
-                        "message": "Tizimga muvaffaqiyatli kirildi.",
-                        "user": {
-                            "id": customer.user.id,
-                            "full_name": customer.user.full_name,
-                            "phone": customer.user.phone,
-                            "email": customer.user.email,
-                        }
-                    }, status=status.HTTP_200_OK)
-            except Exception:
-                continue
-
-        return Response({"error": "Yuz hech bir foydalanuvchiga mos kelmadi."}, status=status.HTTP_401_UNAUTHORIZED)
-    
+            print(f"Face login error: {str(e)}")
+            return Response({"error": f"Yuz tanish jarayonida xatolik yuz berdi: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CustomerProfileAPIView(APIView):
