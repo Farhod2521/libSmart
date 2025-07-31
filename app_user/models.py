@@ -18,6 +18,8 @@ class UserManager(BaseUserManager):
         return self.create_user(phone, password, **extra_fields)
 
 class User(AbstractBaseUser, PermissionsMixin):
+    username = None  # <=== BU YERGA QO‘SHING
+
     ROLE_CHOICES = (
         ('admin', 'Admin'),
         ('customer', 'Mijoz'),
