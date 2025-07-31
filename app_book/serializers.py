@@ -12,6 +12,7 @@ class BookSerializer(serializers.ModelSerializer):
     class Meta:
         model = Book
         fields = [
+            "id",
             'category',
             'title_uz', 'title_ru', 'title_en',
             'creator_uz', 'creator_ru', 'creator_en',
