@@ -14,7 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 from PIL import Image
 import numpy as np
 import io 
-from .models import  User, Customer
+from .models import  User, Customer, Notification
 from rest_framework_simplejwt.tokens import RefreshToken
 from datetime import timedelta 
 import base64
@@ -284,3 +284,18 @@ class NotificationListAPIView(APIView):
         notifications = customer.notifications.all().order_by('-created_at')
         serializer = NotificationSerializer(notifications, many=True)
         return Response(serializer.data)
+    
+
+class NotificationReadAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            notification = Notification.objects.get(pk=pk, customer__user=request.user)
+        except Notification.DoesNotExist:
+            return Response({'detail': 'Bildirishnoma topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
+
+        notification.is_read = True
+        notification.save()
+
+        return Response({'detail': 'Bildirishnoma o\'qilgan deb belgilandi.'}, status=status.HTTP_200_OK)
