@@ -75,6 +75,7 @@ class LoginWithPhoneAPIView(APIView):
                 'expires_in': expires_in,
                 'phone': user.phone,
                 'full_name': user.full_name,
+                "role": user.role,
                 'message': '✅ Tizimga muvaffaqiyatli kirildi!'
             })
 
@@ -83,7 +84,39 @@ class LoginWithPhoneAPIView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+class LoginWithPhoneAdminAPIView(APIView):
+    def post(self, request):
+        phone = request.data.get('phone')
+        password = request.data.get('password')
 
+        user = authenticate(request, phone=phone, password=password)
+        if user is not None:
+            if user.role not in ['admin', 'director']:
+                return Response(
+                    {'error': '⛔ Sizning rolingiz tizimga kirish uchun ruxsat etilmagan!'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # JWT tokenlar yaratish
+            refresh = RefreshToken.for_user(user)
+            access_token = refresh.access_token
+            access_token.set_exp(lifetime=timedelta(hours=13))  # Token muddati
+            expires_in = timedelta(hours=13).total_seconds()
+
+            return Response({
+                'access_token': str(access_token),
+                'refresh_token': str(refresh),
+                'expires_in': expires_in,
+                'phone': user.phone,
+                'full_name': user.full_name,
+                "role": user.role,
+                'message': '✅ Tizimga muvaffaqiyatli kirildi!'
+            })
+
+        return Response(
+            {'error': '⛔ Telefon raqam yoki parol noto‘g‘ri!'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 import re
 
 import cv2
@@ -151,6 +184,7 @@ class FaceLoginAPIView(APIView):
                 'expires_in': expires_in,
                 'phone': user.phone,
                 'full_name': user.full_name,
+                "role": user.role,
                 'message': '✅ Tizimga muvaffaqiyatli kirildi!'
             }, status=status.HTTP_200_OK)
             
