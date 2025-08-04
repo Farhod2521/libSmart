@@ -316,7 +316,7 @@ class BookDownloadAPIView(APIView):
         # Yuklab olish tarixini saqlash
         customer = None
         if request.user.is_authenticated:
-            customer = getattr(request.user, 'customer', None)
+            customer = getattr(request.user, 'customer_profile', None)
 
         DownloadHistory.objects.create(
             customer=customer,
