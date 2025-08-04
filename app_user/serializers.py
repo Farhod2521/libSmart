@@ -188,6 +188,7 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source='user.full_name')
     phone = serializers.CharField(source='user.phone')
     email = serializers.EmailField(source='user.email', allow_null=True)
+    date_joined = serializers.DateTimeField(source='user.date_joined', read_only=True)
 
     class Meta:
         model = Customer
@@ -195,6 +196,7 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             'full_name',
             'phone',
             'email',
+            'date_joined',  # 👈 qo‘shildi
             'birth_date',
             'gender',
             'language',
@@ -204,6 +206,7 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             'occupation',
             'interests',
         ]
+
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
