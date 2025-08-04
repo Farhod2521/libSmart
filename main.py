@@ -53,16 +53,39 @@ async def get_customer_id_by_token(conn, token: str) -> Optional[int]:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         user_id = payload.get("user_id")
         print(f"✅ DECODED USER ID from JWT: {user_id}")
+        
+        if not user_id:
+            return None
+            
+        # First check if user exists and has customer role
+        user_row = await conn.fetchrow(
+            "SELECT id, role FROM app_user_user WHERE id = $1",
+            user_id
+        )
+        
+        if not user_row:
+            print("❌ USER not found")
+            return None
+            
+        if user_row['role'] != 'customer':
+            print(f"❌ USER role is {user_row['role']}, not customer")
+            return None
+            
+        # Then get customer id
+        customer_row = await conn.fetchrow(
+            "SELECT id FROM app_user_customer WHERE user_id = $1",
+            user_id
+        )
+        
+        if customer_row:
+            print(f"✅ CUSTOMER ID: {customer_row['id']}")
+            return customer_row['id']
+        else:
+            print("❌ Customer profile not found for this user")
+            return None
+            
     except JWTError as e:
         print(f"❌ JWT decoding error: {str(e)}")
-        return None
-
-    row = await conn.fetchrow("SELECT id FROM app_user_customer WHERE user_id = $1", user_id)
-    if row:
-        print(f"✅ CUSTOMER ID: {row['id']}")
-        return row['id']
-    else:
-        print("❌ USER exists but CUSTOMER not linked")
         return None
 
 # 🔍 Qidiruv endpoint
@@ -74,12 +97,13 @@ async def search_books(q: str = Query(..., min_length=1), authorization: Optiona
     search_term = q.strip().lower()
     customer_id = None
 
-    # 🧠 Token bor bo‘lsa, dekodlab customer_id olish
+    # 🧠 Token bor bo'lsa, dekodlab customer_id olish
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ")[1]
         customer_id = await get_customer_id_by_token(conn, token)
+        print(f"🔑 Customer ID from token: {customer_id}")
     else:
-        print("❌ Authorization header yo'q yoki noto‘g‘ri formatda")
+        print("⚠️ Authorization header yo'q yoki noto'g'ri formatda")
 
     # 🔎 Kitob qidirish
     if len(search_term) >= 3:
@@ -122,15 +146,20 @@ async def search_books(q: str = Query(..., min_length=1), authorization: Optiona
 
     books = [BookOut(**{k: v for k, v in dict(row).items() if k != 'sim_score'}) for row in rows]
 
-    try:
-        book_id = rows[0]['id'] if rows else None
-        print(f"📘 QIDIRUV: '{q}' | BOOK ID: {book_id} | CUSTOMER ID: {customer_id}")
-        await conn.execute("""
-            INSERT INTO app_book_searchhistory (customer_id, query, searched_at, book_id)
-            VALUES ($1, $2, $3, $4)
-        """, customer_id, q, datetime.datetime.utcnow(), book_id)
-    except Exception as e:
-        print(f"❌ Qidiruv tarixini saqlashda muammo: {str(e)}")
+    # 💾 Qidiruv tarixini saqlash (faqat customer_id bo'lsa)
+    if customer_id is not None:
+        try:
+            book_id = rows[0]['id'] if rows else None
+            print(f"📝 Saving search history: Customer={customer_id}, Query='{q}', Book={book_id}")
+            
+            await conn.execute("""
+                INSERT INTO app_book_searchhistory (customer_id, query, searched_at, book_id)
+                VALUES ($1, $2, $3, $4)
+            """, customer_id, q, datetime.datetime.utcnow(), book_id)
+        except Exception as e:
+            print(f"❌ Qidiruv tarixini saqlashda muammo: {str(e)}")
+    else:
+        print("👤 Customer ID topilmadi - qidiruv tarixi saqlanmaydi")
 
     await conn.close()
     return books
