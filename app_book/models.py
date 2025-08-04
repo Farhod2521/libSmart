@@ -116,3 +116,27 @@ class SearchHistory(models.Model):
         verbose_name = "Qidiruv tarixi"
         verbose_name_plural = "Qidiruv tarixlari"
         ordering = ['-searched_at']
+
+
+
+class DownloadHistory(models.Model):
+    customer = models.ForeignKey(
+        "app_user.Customer", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='download_histories',
+        verbose_name="Foydalanuvchi"
+    )
+    book = models.ForeignKey(
+        Book, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='download_histories',
+        verbose_name="Yuklab olingan kitob"
+    )
+    downloaded_at = models.DateTimeField(default=timezone.now, verbose_name="Yuklab olingan vaqt")
+    device_info = models.CharField(max_length=255, blank=True, null=True, verbose_name="Qurilma haqida ma’lumot (ixtiyoriy)")
+
+    def __str__(self):
+        return f"{self.book.title if self.book else 'Nomaʼlum kitob'} - {self.customer if self.customer else 'Anonim'}"
+
+    class Meta:
+        verbose_name = "Yuklab olish tarixi"
+        verbose_name_plural = "Yuklab olish tarixlari"
+        ordering = ['-downloaded_at']

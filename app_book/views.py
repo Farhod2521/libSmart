@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import CategoryBook, Book, BookRating, BookLike, SearchHistory
+from .models import CategoryBook, Book, BookRating, BookLike, SearchHistory, DownloadHistory
 from .serializers import CategoryBookSerializer, BookSerializer, BookRatingSerializer,  BookListSerializer, BookDetailSerializer, BookLikeSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
@@ -313,4 +313,37 @@ class BookDownloadAPIView(APIView):
         book.download_count += 1
         book.save(update_fields=["download_count"])
 
+        # Yuklab olish tarixini saqlash
+        customer = None
+        if request.user.is_authenticated:
+            customer = getattr(request.user, 'customer', None)
+
+        DownloadHistory.objects.create(
+            customer=customer,
+            book=book,
+            device_info=request.META.get('HTTP_USER_AGENT', '')  # Qurilma haqida info
+        )
+
         return FileResponse(book.file.open(), as_attachment=True, filename=book.file.name.split("/")[-1])
+    
+
+
+
+
+class DownloadedBooksAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        customer = getattr(request.user, 'customer', None)
+        if not customer:
+            return Response({"detail": "Foydalanuvchi aniqlanmadi."}, status=400)
+
+        # Takrorlanmas kitoblar ro‘yxati
+        downloaded_books = DownloadHistory.objects.filter(customer=customer).values_list("book", flat=True).distinct()
+
+        # Kitoblarni yuklash
+        from .models import Book
+        books = Book.objects.filter(id__in=downloaded_books)
+
+        serializer = BookSerializer(books, many=True, context={'request': request})
+        return Response(serializer.data)
