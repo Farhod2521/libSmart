@@ -63,7 +63,8 @@ class BookListSerializer(serializers.ModelSerializer):
             'language',
             'image',
             'file',
-            'average_rating'
+            'average_rating',
+            "download_count",
         ]
 
 class BookRatingDetailSerializer(serializers.ModelSerializer):
