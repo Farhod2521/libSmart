@@ -334,7 +334,7 @@ class DownloadedBooksAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        customer = getattr(request.user, 'customer', None)
+        customer = getattr(request.user, 'customer_profile', None)
         if not customer:
             return Response({"detail": "Foydalanuvchi aniqlanmadi."}, status=400)
 
