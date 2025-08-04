@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import CategoryBook, Book, BookRating, BookLike
+from .models import CategoryBook, Book, BookRating, BookLike, SearchHistory
 from .serializers import CategoryBookSerializer, BookSerializer, BookRatingSerializer,  BookListSerializer, BookDetailSerializer, BookLikeSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
@@ -170,8 +170,10 @@ class BookRatingCreateAPIView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-
+from django.utils import timezone
 class AllBookListAPIView(APIView):
+    permission_classes = []  # Allow both authenticated and unauthenticated access
+
     def get(self, request):
         search = request.query_params.get('search')
         category_id = request.query_params.get('category')
@@ -188,23 +190,27 @@ class AllBookListAPIView(APIView):
                 Q(description__icontains=search)
             )
 
+            # Save search history (for both authenticated and anonymous users)
+            self._save_search_history(request, search, books.first())
+
         if category_id:
             books = books.filter(category_id=category_id)
 
         if min_rating:
             try:
                 min_rating = float(min_rating)
-                books = books.filter(average_rating__gte=min_rating)
+                books = books.filter(avg_rating__gte=min_rating)
             except ValueError:
-                return Response({'error': 'Rating raqam bo‘lishi kerak.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Rating raqam bo‘lishi kerak.'}, 
+                               status=status.HTTP_400_BAD_REQUEST)
 
         if ordering == 'random':
             books = list(books)
             random.shuffle(books)
         elif ordering == 'rating':
-            books = books.order_by('average_rating')
+            books = books.order_by('avg_rating')
         elif ordering == '-rating':
-            books = books.order_by('-average_rating')
+            books = books.order_by('-avg_rating')
         else:
             books = books.order_by('-id')
 
@@ -213,7 +219,23 @@ class AllBookListAPIView(APIView):
         serializer = BookListSerializer(page, many=True)
 
         return paginator.get_paginated_response(serializer.data)
-    
+
+    def _save_search_history(self, request, query, book=None):
+        """Helper method to save search history"""
+        try:
+            customer = None
+            if request.user.is_authenticated and hasattr(request.user, 'customer_profile'):
+                customer = request.user.customer_profile
+
+            SearchHistory.objects.create(
+                customer=customer,
+                query=query,
+                book=book,
+                searched_at=timezone.now()
+            )
+        except Exception as e:
+            # Silently fail if there's an error saving search history
+            print(f"Error saving search history: {str(e)}")
 
 
 
