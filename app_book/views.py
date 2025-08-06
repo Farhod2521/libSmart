@@ -171,6 +171,7 @@ class BookRatingCreateAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 from django.utils import timezone
+from uztranslit import UzTranslit
 class AllBookListAPIView(APIView):
     permission_classes = []  # Allow both authenticated and unauthenticated access
 
@@ -183,6 +184,18 @@ class AllBookListAPIView(APIView):
         books = Book.objects.annotate(avg_rating=Avg('ratings__rating'))
 
         if search:
+            # 👇 Kiril yoki Lotin tilini aniqlash
+            def is_cyrillic(text):
+                for char in text:
+                    if 'А' <= char <= 'я' or char in 'ЎўҒғҚқҲҳЁё':
+                        return True
+                return False
+
+            # Agar kiril bo‘lsa, uni lotinga o‘tkazamiz
+            if is_cyrillic(search):
+                search = UzTranslit.to_latin(search)
+
+            # 🔍 Qidiruv
             books = books.filter(
                 Q(title__icontains=search) |
                 Q(creator__icontains=search) |
@@ -190,20 +203,23 @@ class AllBookListAPIView(APIView):
                 Q(description__icontains=search)
             )
 
-            # Save search history (for both authenticated and anonymous users)
+            # 📝 Qidiruv tarixini saqlash
             self._save_search_history(request, search, books.first())
 
+        # 📚 Kategoriya bo‘yicha filter
         if category_id:
             books = books.filter(category_id=category_id)
 
+        # ⭐ Reyting bo‘yicha filter
         if min_rating:
             try:
                 min_rating = float(min_rating)
                 books = books.filter(avg_rating__gte=min_rating)
             except ValueError:
                 return Response({'error': 'Rating raqam bo‘lishi kerak.'}, 
-                               status=status.HTTP_400_BAD_REQUEST)
+                                status=status.HTTP_400_BAD_REQUEST)
 
+        # ↕️ Tartiblash
         if ordering == 'random':
             books = list(books)
             random.shuffle(books)
@@ -214,6 +230,7 @@ class AllBookListAPIView(APIView):
         else:
             books = books.order_by('-id')
 
+        # 📄 Sahifalash va natijani jo‘natish
         paginator = BookPagination()
         page = paginator.paginate_queryset(books, request)
         serializer = BookListSerializer(page, many=True)
@@ -234,9 +251,7 @@ class AllBookListAPIView(APIView):
                 searched_at=timezone.now()
             )
         except Exception as e:
-            # Silently fail if there's an error saving search history
             print(f"Error saving search history: {str(e)}")
-
 
 
 
