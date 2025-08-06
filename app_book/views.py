@@ -171,7 +171,7 @@ class BookRatingCreateAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 from django.utils import timezone
-from uztranslit import UzTranslit
+from .uztranslit import UzTranslit 
 class AllBookListAPIView(APIView):
     permission_classes = []  # Allow both authenticated and unauthenticated access
 
