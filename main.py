@@ -7,7 +7,7 @@ import uvicorn
 import datetime
 from jose import jwt
 from jose.exceptions import JWTError
-
+from uztranslit import UzTranslit
 # 🔐 JWT konfiguratsiya
 JWT_SECRET_KEY = 'django-insecure-&1kh%#40cdf1gcnv8ejh2k8gy0m3n*m-^1-7)(uo)o=6&3)1p7' # ⛔ bu joyga Django'dagi settings.SECRET_KEY ni yozing
 JWT_ALGORITHM = "HS256"
@@ -95,9 +95,19 @@ async def search_books(q: str = Query(..., min_length=1), authorization: Optiona
     await conn.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
 
     search_term = q.strip().lower()
-    customer_id = None
 
-    # 🧠 Token bor bo'lsa, dekodlab customer_id olish
+    # 👉 Kiril yozuvini aniqlash
+    def is_cyrillic(text):
+        for char in text:
+            if 'А' <= char <= 'я' or char in 'ЎўҒғҚқҲҳЁё':
+                return True
+        return False
+
+    if is_cyrillic(search_term):
+        print("🔁 Kiril yozuvi aniqlandi, lotinga o'tkazilmoqda...")
+        search_term = UzTranslit.to_latin(search_term)
+
+    customer_id = None
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ")[1]
         customer_id = await get_customer_id_by_token(conn, token)
