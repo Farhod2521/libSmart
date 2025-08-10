@@ -243,14 +243,51 @@ class FaceLoginAPIView(APIView):
         return None
 
 
+
 class CustomerProfileAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
 
+        # Admin uchun maxsus ma'lumot
+        if user.role == 'admin':
+            admin_data = {
+                'full_name': user.full_name,
+                'phone': user.phone,
+                'email': user.email,
+                'role': user.role
+            }
+            return Response(admin_data, status=status.HTTP_200_OK)
+
         # Faqat 'customer' roliga ruxsat
         if user.role != 'customer':
+            return Response(
+                {'error': 'Sizda ushbu sahifaga ruxsat yo‘q.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            customer_profile = user.customer_profile
+        except Customer.DoesNotExist:
+            return Response(
+                {'error': 'Profil topilmadi.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = CustomerProfileSerializer(customer_profile)
+        customer_data = serializer.data
+        customer_data['role'] = user.role  # Rol qo'shish
+        return Response(customer_data, status=status.HTTP_200_OK)
+
+class AdminProfileAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        # Faqat 'customer' roliga ruxsat
+        if user.role != 'admin':
             return Response({'error': 'Sizda ushbu sahifaga ruxsat yo‘q.'}, status=status.HTTP_403_FORBIDDEN)
 
         try:
