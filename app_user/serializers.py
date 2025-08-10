@@ -212,7 +212,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         model = Customer
         fields = [
             'birth_date', 'gender', 'language', 'state', 'region',
-            'education', 'occupation', 'interests', 'face_encoding'
+            'education', 'occupation', 'interests', 'face_encoding',  "profile_image"
         ]
 
 from app_book.models import SearchHistory

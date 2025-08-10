@@ -64,6 +64,7 @@ class Customer(models.Model):
     occupation = models.CharField("Kasbi", max_length=255)
     interests = models.TextField("Qiziqishlari", blank=True)
     face_encoding = models.TextField("Yuz vektori (128 float)", blank=True, null=True)
+    profile_image =  models.ImageField(upload_to="IMAGE/profile_image/",  blank=True, null=True)
 
 
     def __str__(self):
