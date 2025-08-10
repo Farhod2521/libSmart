@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import CategoryBook, Book, BookRating, BookLike, SearchHistory, DownloadHistory
-from .serializers import CategoryBookSerializer, BookSerializer, BookRatingSerializer,  BookListSerializer, BookDetailSerializer, BookLikeSerializer
+from .serializers import CategoryBookSerializer, BookSerializer, BookRatingSerializer,  BookShortSerializer,BookListSerializer, BookDetailSerializer, BookLikeSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 import random
@@ -135,13 +135,29 @@ class RandomBookListAPIView(APIView):
         serializer = BookSerializer(selected_books, many=True)
         return Response(serializer.data)
     
-
+from random import sample
 
 class BookDetailAPIView(APIView):
     def get(self, request, pk):
         book = get_object_or_404(Book, pk=pk)
         serializer = BookDetailSerializer(book)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # Similar books based on the same "relation" field
+        similar_books_qs = Book.objects.filter(relation=book.relation).exclude(id=book.id)
+        similar_books_count = similar_books_qs.count()
+
+        # Random 10 books if enough, else all
+        if similar_books_count > 10:
+            similar_books = sample(list(similar_books_qs), 10)
+        else:
+            similar_books = list(similar_books_qs)
+
+        similar_books_serializer = BookShortSerializer(similar_books, many=True)
+
+        return Response({
+            "book": serializer.data,
+            "similar_books": similar_books_serializer.data
+        }, status=status.HTTP_200_OK)
 
 
 ##############################  BOOK RATING ###################################

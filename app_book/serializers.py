@@ -29,7 +29,31 @@ class BookSerializer(serializers.ModelSerializer):
             'file',
         ]
 
+class BookShortSerializer(serializers.ModelSerializer):
+    average_rating = serializers.FloatField(read_only=True)
 
+    class Meta:
+        model = Book
+        fields = [
+            'id',
+            'category',
+            'title_uz', 'title_ru', 'title_en',
+            'creator_uz', 'creator_ru', 'creator_en',
+            'subject_uz', 'subject_ru', 'subject_en',
+            'description_uz', 'description_ru', 'description_en',
+            'publisher_uz', 'publisher_ru', 'publisher_en',
+            'contributor_uz', 'contributor_ru', 'contributor_en',
+            'date', 'format', 'identifier',
+            
+            'relation_uz', 'relation_ru', 'relation_en',
+            'coverage_uz', 'coverage_ru', 'coverage_en',
+            'rights',
+            'language',
+            'image',
+            'file',
+            'average_rating',
+            "download_count",
+        ]
 class BookRatingSerializer(serializers.ModelSerializer):
     class Meta:
         model = BookRating
