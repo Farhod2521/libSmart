@@ -205,6 +205,7 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             'education',
             'occupation',
             'interests',
+            "profile_image"
         ]
 
 class CustomerSerializer(serializers.ModelSerializer):
