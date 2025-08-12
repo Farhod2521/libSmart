@@ -385,30 +385,26 @@ class DownloadedBooksAPIView(APIView):
 import fitz  # PyMuPDF
 from django.http import JsonResponse
 class BookSearchLargeTextAPIView(APIView):
-    
 
-    def get(self, request):
-        query = request.query_params.get('q', '').strip()
+    def post(self, request):
+        query = request.data.get('matn', '').strip()
 
         if not query:
-            return JsonResponse({"error": "Qidirish so‘zi kerak"}, status=400)
+            return JsonResponse({"error": "Qidirish matni kerak"}, status=400)
 
         results = []
 
-        books = Book.objects.exclude(file="")  # PDF fayli bor kitoblar
+        books = Book.objects.filter(file__isnull=False).exclude(file="")
         for book in books:
-            if not book.file:
-                continue
-
-            file_path = book.file.path
             try:
-                doc = fitz.open(file_path)
+                doc = fitz.open(book.file.path)
             except Exception as e:
-                continue  # Agar fayl ochilmasa, o'tkazib yuboramiz
+                print(f"Xato: {book.title} - {e}")
+                continue
 
             matches = []
             for page_num, page in enumerate(doc, start=1):
-                text = page.get_text()
+                text = page.get_text("text")
                 if query.lower() in text.lower():
                     matches.append({
                         "page": page_num,
@@ -423,10 +419,10 @@ class BookSearchLargeTextAPIView(APIView):
                     "matches": matches
                 })
 
-        return JsonResponse({"count": len(results), "results": results}, safe=False)
+        return JsonResponse({"count": len(results), "results": results})
 
-    def get_snippet(self, text, query, length=100):
-        """Topilgan joydan qisqa kontekst qaytarish"""
+    def get_snippet(self, text, query, length=120):
+        """Topilgan joydan qisqa kontekst chiqarish"""
         idx = text.lower().find(query.lower())
         if idx == -1:
             return ""
