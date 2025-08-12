@@ -385,7 +385,7 @@ class DownloadedBooksAPIView(APIView):
 import fitz  # PyMuPDF
 from django.http import JsonResponse
 class BookSearchLargeTextAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    
 
     def get(self, request):
         query = request.query_params.get('q', '').strip()
