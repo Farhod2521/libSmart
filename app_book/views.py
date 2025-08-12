@@ -384,6 +384,10 @@ class DownloadedBooksAPIView(APIView):
 
 import fitz  # PyMuPDF
 from django.http import JsonResponse
+import pytesseract
+from PIL import Image
+import io
+from django.http import JsonResponse
 class BookSearchLargeTextAPIView(APIView):
 
     def post(self, request):
@@ -404,7 +408,21 @@ class BookSearchLargeTextAPIView(APIView):
 
             matches = []
             for page_num, page in enumerate(doc, start=1):
+                # 1️⃣ Avval oddiy matnni olishga harakat qilamiz
                 text = page.get_text("text")
+
+                # 2️⃣ Agar matn bo‘lmasa, OCR ishlatamiz
+                if not text.strip():
+                    try:
+                        pix = page.get_pixmap()
+                        img = Image.open(io.BytesIO(pix.tobytes()))
+                        ocr_text = pytesseract.image_to_string(img, lang="rus+eng")  # Rus va ingliz OCR
+                        text = ocr_text
+                    except Exception as ocr_err:
+                        print(f"OCR xatosi: {book.title} - {ocr_err}")
+                        continue
+
+                # 3️⃣ Qidiruv
                 if query.lower() in text.lower():
                     matches.append({
                         "page": page_num,
