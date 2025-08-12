@@ -378,3 +378,58 @@ class DownloadedBooksAPIView(APIView):
 
         serializer = BookSerializer(books, many=True, context={'request': request})
         return Response(serializer.data)
+    
+
+
+
+import fitz  # PyMuPDF
+from django.http import JsonResponse
+class BookSearchLargeTextAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        query = request.query_params.get('q', '').strip()
+
+        if not query:
+            return JsonResponse({"error": "Qidirish so‘zi kerak"}, status=400)
+
+        results = []
+
+        books = Book.objects.exclude(file="")  # PDF fayli bor kitoblar
+        for book in books:
+            if not book.file:
+                continue
+
+            file_path = book.file.path
+            try:
+                doc = fitz.open(file_path)
+            except Exception as e:
+                continue  # Agar fayl ochilmasa, o'tkazib yuboramiz
+
+            matches = []
+            for page_num, page in enumerate(doc, start=1):
+                text = page.get_text()
+                if query.lower() in text.lower():
+                    matches.append({
+                        "page": page_num,
+                        "snippet": self.get_snippet(text, query)
+                    })
+
+            if matches:
+                results.append({
+                    "id": book.id,
+                    "title": book.title,
+                    "creator": book.creator,
+                    "matches": matches
+                })
+
+        return JsonResponse({"count": len(results), "results": results}, safe=False)
+
+    def get_snippet(self, text, query, length=100):
+        """Topilgan joydan qisqa kontekst qaytarish"""
+        idx = text.lower().find(query.lower())
+        if idx == -1:
+            return ""
+        start = max(idx - length // 2, 0)
+        end = min(idx + length // 2, len(text))
+        return text[start:end].replace("\n", " ").strip()

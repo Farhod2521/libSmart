@@ -5,7 +5,7 @@ from .views import (
     BookListAPIView, BookCreateAPIView,
     BookUpdateAPIView, BookDeleteAPIView,RandomBookListAPIView, BookRatingCreateAPIView, 
     AllBookListAPIView, BookDetailAPIView, BookLikeCreateAPIView, BookLikeListAPIView, BookLikeDeleteAPIView,
-    BookDownloadAPIView
+    BookDownloadAPIView, BookSearchLargeTextAPIView
 )
 
 urlpatterns = [
@@ -33,5 +33,7 @@ urlpatterns = [
     path('book-like/list/', BookLikeListAPIView.as_view(), name='book-like-list'),
     path('book-like/<int:book_id>/delete/', BookLikeDeleteAPIView.as_view(), name='book-like-delete'),
     path('books/<int:pk>/download/', BookDownloadAPIView.as_view(), name='book-download'),
+    path('book-search-large-text/', BookSearchLargeTextAPIView.as_view(), name='book-like-create'),
+
 
 ]
