@@ -384,48 +384,58 @@ class DownloadedBooksAPIView(APIView):
 
 import fitz  # PyMuPDF
 from django.http import JsonResponse
+import concurrent.futures
+import re
 class BookSearchLargeTextAPIView(APIView):
-
     def post(self, request):
-        query = request.data.get('matn', '').strip()
-
+        query = request.data.get('matn', '').strip().lower()
+        
         if not query:
             return JsonResponse({"error": "Qidirish matni kerak"}, status=400)
-
-        results = []
-
-        books = Book.objects.filter(file__isnull=False).exclude(file="")
-        for book in books:
-            try:
-                doc = fitz.open(book.file.path)
-            except Exception as e:
-                print(f"Xato: {book.title} - {e}")
-                continue
-
-            matches = []
-            for page_num, page in enumerate(doc, start=1):
-                text = page.get_text("text")
-                if query.lower() in text.lower():
-                    matches.append({
-                        "page": page_num,
-                        "snippet": self.get_snippet(text, query)
-                    })
-
-            if matches:
-                results.append({
-                    "id": book.id,
-                    "title": book.title,
-                    "creator": book.creator,
-                    "matches": matches
-                })
-
+        
+        # Pre-compile regex pattern for case-insensitive search
+        pattern = re.compile(re.escape(query), re.IGNORECASE)
+        
+        # Get all books with PDF files (only necessary fields)
+        books = Book.objects.filter(
+            Q(file__isnull=False) & ~Q(file="")
+        ).only('id', 'title', 'creator', 'file')
+        
+        # Use ThreadPoolExecutor for parallel processing
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = [executor.submit(self.process_book, book, pattern) for book in books]
+            results = [future.result() for future in concurrent.futures.as_completed(futures) if future.result()]
+        
         return JsonResponse({"count": len(results), "results": results})
-
-    def get_snippet(self, text, query, length=120):
-        """Topilgan joydan qisqa kontekst chiqarish"""
-        idx = text.lower().find(query.lower())
-        if idx == -1:
-            return ""
-        start = max(idx - length // 2, 0)
-        end = min(idx + length // 2, len(text))
+    
+    def process_book(self, book, pattern):
+        try:
+            with fitz.open(book.file.path) as doc:
+                matches = []
+                for page_num in range(len(doc)):
+                    page = doc.load_page(page_num)
+                    text = page.get_text("text")
+                    
+                    # Use regex to find all matches
+                    for match in pattern.finditer(text):
+                        matches.append({
+                            "page": page_num + 1,
+                            "snippet": self.get_snippet(text, match.start(), match.end())
+                        })
+                
+                if matches:
+                    return {
+                        "id": book.id,
+                        "title": book.title,
+                        "creator": book.creator,
+                        "matches": matches
+                    }
+        except Exception as e:
+            print(f"Xato: {book.title} - {e}")
+        return None
+    
+    def get_snippet(self, text, start_idx, end_idx, context_length=120):
+        """Get context around the match"""
+        start = max(start_idx - context_length // 2, 0)
+        end = min(end_idx + context_length // 2, len(text))
         return text[start:end].replace("\n", " ").strip()
