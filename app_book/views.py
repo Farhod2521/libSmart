@@ -141,7 +141,9 @@ class BookDetailAPIView(APIView):
         book = get_object_or_404(Book, pk=pk)
         serializer = BookDetailSerializer(book)
 
-        # --- 1. Nomga yaqin kitoblar ---
+        similar_books = []
+
+        # --- 1. Title-ga yaqin kitoblar ---
         title_filter = Q()
         if book.title_uz:
             title_filter |= Q(title_uz__icontains=book.title_uz)
@@ -150,10 +152,12 @@ class BookDetailAPIView(APIView):
         if book.title_en:
             title_filter |= Q(title_en__icontains=book.title_en)
 
-        similar_books_qs = Book.objects.filter(title_filter).exclude(id=book.id) if title_filter else Book.objects.none()
-        similar_books = list(similar_books_qs)
+        if title_filter:
+            title_books_qs = Book.objects.filter(title_filter).exclude(id=book.id)
+            title_books = list(title_books_qs)
+            similar_books += title_books[:10]  # title-ga mos kitoblarni birinchi qo'shish
 
-        # --- 2. Agar yetarli bo'lmasa, muallif bo'yicha qo'shish ---
+        # --- Agar 10 taga yetmagan bo'lsa, author bo'yicha qo'shish ---
         if len(similar_books) < 10:
             author_filter = Q()
             if book.creator_uz:
@@ -167,18 +171,18 @@ class BookDetailAPIView(APIView):
                 author_books_qs = Book.objects.filter(author_filter).exclude(
                     id__in=[b.id for b in similar_books] + [book.id]
                 )
-                similar_books += list(author_books_qs)
+                author_books = list(author_books_qs)
+                remaining_slots = 10 - len(similar_books)
+                similar_books += author_books[:remaining_slots]
 
-        # --- 3. Agar hali ham yetarli bo'lmasa, boshqa kitoblar bilan to'ldirish ---
+        # --- Agar hali ham yetarli bo'lmasa, relation bo'yicha qo'shish ---
         if len(similar_books) < 10:
-            remaining_books_qs = Book.objects.exclude(id__in=[b.id for b in similar_books] + [book.id])
-            remaining_count = min(10 - len(similar_books), remaining_books_qs.count())
-            if remaining_count > 0:
-                remaining_books = list(remaining_books_qs)
-                similar_books += sample(remaining_books, remaining_count)
-
-        # --- 10 ta kitobga limitlash ---
-        similar_books = similar_books[:10]
+            relation_books_qs = Book.objects.filter(relation=book.relation).exclude(
+                id__in=[b.id for b in similar_books] + [book.id]
+            )
+            relation_books = list(relation_books_qs)
+            remaining_slots = 10 - len(similar_books)
+            similar_books += relation_books[:remaining_slots]
 
         similar_books_serializer = BookShortSerializer(similar_books, many=True)
 
