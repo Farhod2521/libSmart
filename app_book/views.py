@@ -142,15 +142,24 @@ class BookDetailAPIView(APIView):
         book = get_object_or_404(Book, pk=pk)
         serializer = BookDetailSerializer(book)
 
-        # Similar books based on the same "relation" field
-        similar_books_qs = Book.objects.filter(relation=book.relation).exclude(id=book.id)
-        similar_books_count = similar_books_qs.count()
+        # 1. Nomga yaqin kitoblar (title bo'yicha qidiruv)
+        title_filter = Q(title_uz__icontains=book.title_uz) | Q(title_ru__icontains=book.title_ru) | Q(title_en__icontains=book.title_en)
+        similar_books_qs = Book.objects.filter(title_filter).exclude(id=book.id)
+        similar_books = list(similar_books_qs)
 
-        # Random 10 books if enough, else all
-        if similar_books_count > 10:
-            similar_books = sample(list(similar_books_qs), 10)
-        else:
-            similar_books = list(similar_books_qs)
+        # 2. Agar yetarli bo'lmasa, muallif bo'yicha qo'shish
+        if len(similar_books) < 10:
+            author_filter = Q(creator_uz=book.creator_uz) | Q(creator_ru=book.creator_ru) | Q(creator_en=book.creator_en)
+            author_books = Book.objects.filter(author_filter).exclude(id__in=[b.id for b in similar_books] + [book.id])
+            similar_books += list(author_books)
+
+        # 3. Agar hali ham yetarli bo'lmasa, boshqa kitoblar bilan to'ldirish
+        if len(similar_books) < 10:
+            remaining_books = Book.objects.exclude(id__in=[b.id for b in similar_books] + [book.id])
+            similar_books += list(sample(list(remaining_books), min(10 - len(similar_books), remaining_books.count())))
+
+        # 10 ta kitobga limitlash
+        similar_books = similar_books[:10]
 
         similar_books_serializer = BookShortSerializer(similar_books, many=True)
 
