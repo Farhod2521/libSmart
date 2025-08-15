@@ -136,29 +136,48 @@ class RandomBookListAPIView(APIView):
         return Response(serializer.data)
     
 from random import sample
-
 class BookDetailAPIView(APIView):
     def get(self, request, pk):
         book = get_object_or_404(Book, pk=pk)
         serializer = BookDetailSerializer(book)
 
-        # 1. Nomga yaqin kitoblar (title bo'yicha qidiruv)
-        title_filter = Q(title_uz__icontains=book.title_uz) | Q(title_ru__icontains=book.title_ru) | Q(title_en__icontains=book.title_en)
-        similar_books_qs = Book.objects.filter(title_filter).exclude(id=book.id)
+        # --- 1. Nomga yaqin kitoblar ---
+        title_filter = Q()
+        if book.title_uz:
+            title_filter |= Q(title_uz__icontains=book.title_uz)
+        if book.title_ru:
+            title_filter |= Q(title_ru__icontains=book.title_ru)
+        if book.title_en:
+            title_filter |= Q(title_en__icontains=book.title_en)
+
+        similar_books_qs = Book.objects.filter(title_filter).exclude(id=book.id) if title_filter else Book.objects.none()
         similar_books = list(similar_books_qs)
 
-        # 2. Agar yetarli bo'lmasa, muallif bo'yicha qo'shish
+        # --- 2. Agar yetarli bo'lmasa, muallif bo'yicha qo'shish ---
         if len(similar_books) < 10:
-            author_filter = Q(creator_uz=book.creator_uz) | Q(creator_ru=book.creator_ru) | Q(creator_en=book.creator_en)
-            author_books = Book.objects.filter(author_filter).exclude(id__in=[b.id for b in similar_books] + [book.id])
-            similar_books += list(author_books)
+            author_filter = Q()
+            if book.creator_uz:
+                author_filter |= Q(creator_uz=book.creator_uz)
+            if book.creator_ru:
+                author_filter |= Q(creator_ru=book.creator_ru)
+            if book.creator_en:
+                author_filter |= Q(creator_en=book.creator_en)
 
-        # 3. Agar hali ham yetarli bo'lmasa, boshqa kitoblar bilan to'ldirish
+            if author_filter:
+                author_books_qs = Book.objects.filter(author_filter).exclude(
+                    id__in=[b.id for b in similar_books] + [book.id]
+                )
+                similar_books += list(author_books_qs)
+
+        # --- 3. Agar hali ham yetarli bo'lmasa, boshqa kitoblar bilan to'ldirish ---
         if len(similar_books) < 10:
-            remaining_books = Book.objects.exclude(id__in=[b.id for b in similar_books] + [book.id])
-            similar_books += list(sample(list(remaining_books), min(10 - len(similar_books), remaining_books.count())))
+            remaining_books_qs = Book.objects.exclude(id__in=[b.id for b in similar_books] + [book.id])
+            remaining_count = min(10 - len(similar_books), remaining_books_qs.count())
+            if remaining_count > 0:
+                remaining_books = list(remaining_books_qs)
+                similar_books += sample(remaining_books, remaining_count)
 
-        # 10 ta kitobga limitlash
+        # --- 10 ta kitobga limitlash ---
         similar_books = similar_books[:10]
 
         similar_books_serializer = BookShortSerializer(similar_books, many=True)
@@ -167,8 +186,6 @@ class BookDetailAPIView(APIView):
             "book": serializer.data,
             "similar_books": similar_books_serializer.data
         }, status=status.HTTP_200_OK)
-
-
 ##############################  BOOK RATING ###################################
 class BookRatingCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
