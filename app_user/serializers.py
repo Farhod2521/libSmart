@@ -207,14 +207,58 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             'interests',
             "profile_image"
         ]
-
+from django.core.files.base import ContentFile
 class CustomerSerializer(serializers.ModelSerializer):
+    # RegisterSerializer dagidek qilish
+    interests = serializers.ListField(
+        child=serializers.CharField(),
+        required=False
+    )
+    image_base64 = serializers.CharField(write_only=True, required=False)
+
     class Meta:
         model = Customer
         fields = [
             'birth_date', 'gender', 'language', 'state', 'region',
-            'education', 'occupation', 'interests', 'face_encoding',  "profile_image"
+            'education', 'occupation', 'interests', 'face_encoding', "profile_image", "image_base64"
         ]
+
+    def update(self, instance, validated_data):
+        # 🔹 interests ni JSON string qilib saqlaymiz
+        if "interests" in validated_data:
+            validated_data["interests"] = json.dumps(validated_data.get("interests", []))
+
+        # 🔹 agar rasm base64 yuborilgan bo‘lsa
+        image_base64 = validated_data.pop("image_base64", None)
+        if image_base64:
+            try:
+                if "base64," in image_base64:
+                    image_base64 = image_base64.split("base64,")[1]
+                image_base64 = re.sub(r'\s+', '', image_base64)
+
+                image_bytes = base64.b64decode(image_base64)
+                image_file = io.BytesIO(image_bytes)
+                image_np = face_recognition.load_image_file(image_file)
+                encodings = face_recognition.face_encodings(image_np)
+            except Exception:
+                raise serializers.ValidationError("Yuz rasmi noto‘g‘ri formatda yoki o‘qib bo‘lmadi.")
+
+            if not encodings:
+                raise serializers.ValidationError("Yuz aniqlanmadi.")
+
+            instance.face_encoding = json.dumps(encodings[0].tolist())
+            instance.profile_image.save(
+                f"profile_{instance.id}.jpg",
+                ContentFile(image_bytes),
+                save=False
+            )
+
+        # 🔹 qolgan maydonlarni yangilash
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+        return instance
 
 from app_book.models import SearchHistory
 from app_book.serializers import BookDetailSerializer
