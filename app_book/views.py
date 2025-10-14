@@ -218,30 +218,26 @@ class BookRatingCreateAPIView(APIView):
     
 from django.utils import timezone
 from .uztranslit import UzTranslit 
+import requests
 class AllBookListAPIView(APIView):
-    permission_classes = []  # Allow both authenticated and unauthenticated access
+    permission_classes = []  # Allow public access
 
     def get(self, request):
-        search = request.query_params.get('search')
+        search = request.query_params.get('search', '').strip()
         category_id = request.query_params.get('category')
         min_rating = request.query_params.get('min_rating')
-        ordering = request.query_params.get('ordering')  # e.g., 'rating', '-rating', 'random'
+        ordering = request.query_params.get('ordering')
 
+        # 1️⃣ Mahalliy bazadan olish
         books = Book.objects.annotate(avg_rating=Avg('ratings__rating'))
 
         if search:
-            # 👇 Kiril yoki Lotin tilini aniqlash
             def is_cyrillic(text):
-                for char in text:
-                    if 'А' <= char <= 'я' or char in 'ЎўҒғҚқҲҳЁё':
-                        return True
-                return False
+                return any('А' <= c <= 'я' or c in 'ЎўҒғҚқҲҳЁё' for c in text)
 
-            # Agar kiril bo‘lsa, uni lotinga o‘tkazamiz
             if is_cyrillic(search):
                 search = UzTranslit.to_latin(search)
 
-            # 🔍 Qidiruv
             books = books.filter(
                 Q(title__icontains=search) |
                 Q(creator__icontains=search) |
@@ -249,23 +245,20 @@ class AllBookListAPIView(APIView):
                 Q(description__icontains=search)
             )
 
-            # 📝 Qidiruv tarixini saqlash
+            # Qidiruv tarixini saqlash
             self._save_search_history(request, search, books.first())
 
-        # 📚 Kategoriya bo‘yicha filter
         if category_id:
             books = books.filter(category_id=category_id)
 
-        # ⭐ Reyting bo‘yicha filter
         if min_rating:
             try:
                 min_rating = float(min_rating)
                 books = books.filter(avg_rating__gte=min_rating)
             except ValueError:
-                return Response({'error': 'Rating raqam bo‘lishi kerak.'}, 
-                                status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Rating raqam bo‘lishi kerak.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # ↕️ Tartiblash
+        # Tartiblash
         if ordering == 'random':
             books = list(books)
             random.shuffle(books)
@@ -276,20 +269,46 @@ class AllBookListAPIView(APIView):
         else:
             books = books.order_by('-id')
 
-        # 📄 Sahifalash va natijani jo‘natish
-        paginator = BookPagination()
-        page = paginator.paginate_queryset(books, request)
-        serializer = BookListSerializer(page, many=True)
+        # 🔹 Mahalliy bazadagi natijalar
+        serializer = BookListSerializer(books, many=True)
+        local_data = serializer.data
 
-        return paginator.get_paginated_response(serializer.data)
+        # 2️⃣ Tashqi API'dan ma’lumot olish
+        external_data = []
+        try:
+            response = requests.get("https://api.miku.uz/convert/all", timeout=10)
+            if response.status_code == 200:
+                api_data = response.json().get("data", [])
+                if search:
+                    search_lower = search.lower()
+                    # Qidiruvni tashqi ma’lumotlarda ham bajarish
+                    for item in api_data:
+                        text = " ".join([
+                            str(item.get("title_uz", "")),
+                            str(item.get("creator_uz", "")),
+                            str(item.get("subject_uz", "")),
+                            str(item.get("description_uz", "")),
+                        ]).lower()
+                        if search_lower in text:
+                            external_data.append(item)
+                else:
+                    external_data = api_data
+        except Exception as e:
+            print(f"Tashqi API xatolik: {e}")
+
+        # 🔹 Ikkala manba birlashtirish
+        combined_data = list(local_data) + list(external_data)
+
+        # Sahifalash
+        paginator = BookPagination()
+        page = paginator.paginate_queryset(combined_data, request)
+        return paginator.get_paginated_response(page)
 
     def _save_search_history(self, request, query, book=None):
-        """Helper method to save search history"""
         try:
             customer = None
             if request.user.is_authenticated and hasattr(request.user, 'customer_profile'):
                 customer = request.user.customer_profile
-
             SearchHistory.objects.create(
                 customer=customer,
                 query=query,
