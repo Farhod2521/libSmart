@@ -33,7 +33,7 @@ class StatisticsAPIView(APIView):
         total_all_books = total_books + external_books_count
 
         return Response({
-            "total_books": total_books,
+            "total_books": total_all_books,
             "external_books": external_books_count,
             "TOTAL_books": total_all_books,
             "total_downloads": total_downloads,
