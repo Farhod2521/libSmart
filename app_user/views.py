@@ -126,8 +126,15 @@ import numpy as np
 class FaceLoginAPIView(APIView):
     def post(self, request):
         # Faqat 1 ta rasm qabul qilamiz
+        phone = request.data.get("phone")
         image_base64 = request.data.get("image_base64")
         
+        if not phone:
+            return Response(
+                {"error": "Telefon raqam yuborilmadi"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         if not image_base64:
             return Response(
                 {"error": "Rasm yuborilmadi"}, 
@@ -135,6 +142,34 @@ class FaceLoginAPIView(APIView):
             )
 
         try:
+            try:
+                user = User.objects.get(phone=phone)
+            except User.DoesNotExist:
+                return Response(
+                    {"error": "Foydalanuvchi topilmadi"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            if user.role != 'customer':
+                return Response(
+                    {"error": "Ushbu login faqat mijozlar uchun"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            try:
+                customer = user.customer_profile
+            except Customer.DoesNotExist:
+                return Response(
+                    {"error": "Mijoz profili topilmadi"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            if not customer.face_encoding:
+                return Response(
+                    {"error": "Mijoz uchun yuz ma'lumoti mavjud emas"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             # Rasmni qayta ishlash
             img = self.base64_to_image(image_base64)
             
@@ -163,12 +198,11 @@ class FaceLoginAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # 4. Bazadagi foydalanuvchilarni tekshirish
-            user = self.find_matching_user(unknown_encoding)
-            if not user:
+            # 4. Faqat shu foydalanuvchining yuzini tekshirish
+            if not self.is_same_user_face(unknown_encoding, customer):
                 return Response(
-                    {"error": "Foydalanuvchi topilmadi"},
-                    status=status.HTTP_404_NOT_FOUND
+                    {"error": "Yuz mos kelmadi"},
+                    status=status.HTTP_401_UNAUTHORIZED
                 )
             
             # 5. Login qilish va JWT token yaratish
@@ -224,23 +258,16 @@ class FaceLoginAPIView(APIView):
         # Haqiqiy loyihada bu aniqroq bo'lishi kerak
         return True
 
-    def find_matching_user(self, unknown_encoding):
-        """Bazadan mos keladigan foydalanuvchini qidirish"""
-        customers = Customer.objects.exclude(face_encoding__isnull=True).exclude(face_encoding="")
-        
-        for customer in customers:
-            try:
-                known_encoding = np.array(json.loads(customer.face_encoding))
-                distance = face_recognition.face_distance([known_encoding], unknown_encoding)[0]
-                
-                # 0.6 - standart masofa, loyihangizga qarab o'zgartirishingiz mumkin
-                if distance < 0.6:
-                    return customer.user
-            except Exception as e:
-                print(f"Xato customer {customer.id}: {str(e)}")
-                continue
-        
-        return None
+    def is_same_user_face(self, unknown_encoding, customer):
+        """Faqat berilgan mijozning yuzini tekshiradi"""
+        try:
+            known_encoding = np.array(json.loads(customer.face_encoding))
+            distance = face_recognition.face_distance([known_encoding], unknown_encoding)[0]
+            # 0.6 - standart masofa, loyihangizga qarab o'zgartirishingiz mumkin
+            return distance < 0.6
+        except Exception as e:
+            print(f"Xato customer {customer.id}: {str(e)}")
+            return False
 
 
 
