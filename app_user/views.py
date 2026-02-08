@@ -344,8 +344,25 @@ class NotificationListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        customer = request.user.customer_profile
-        notifications = customer.notifications.all().order_by('-created_at')
+        user = request.user
+
+        if user.role != 'customer':
+            return Response(
+                {'error': 'Sizda ushbu sahifaga ruxsat yo‘q.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            customer = user.customer_profile
+        except Customer.DoesNotExist:
+            return Response(
+                {'error': 'Profil topilmadi.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        notifications = Notification.objects.filter(
+            customer=customer
+        ).order_by('-created_at')
         serializer = NotificationSerializer(notifications, many=True)
         return Response(serializer.data)
     
@@ -354,6 +371,13 @@ class NotificationReadAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
+        user = request.user
+        if user.role != 'customer':
+            return Response(
+                {'error': 'Sizda ushbu sahifaga ruxsat yo‘q.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         try:
             notification = Notification.objects.get(pk=pk, customer__user=request.user)
         except Notification.DoesNotExist:
