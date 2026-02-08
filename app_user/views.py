@@ -229,19 +229,19 @@ class FaceLoginAPIView(APIView):
             )
 
     def base64_to_image(self, image_base64):
-        """Base64 ni OpenCV formatiga o'tkazish"""
+        """Base64 ni face_recognition uchun RGB formatiga o'tkazish"""
         if "base64," in image_base64:
             image_base64 = image_base64.split("base64,")[1]
-        
+        image_base64 = re.sub(r'\s+', '', image_base64)
         image_data = base64.b64decode(image_base64)
         image = Image.open(io.BytesIO(image_data))
-        return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        return np.array(image.convert("RGB"))
 
     def check_liveness(self, image):
         """Oddiy liveness tekshiruvi"""
         # 1. Yuz joylashuvi va o'lchami
         face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         faces = face_cascade.detectMultiScale(gray, 1.1, 4)
         
         if len(faces) == 0:
