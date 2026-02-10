@@ -76,6 +76,13 @@ class LoginWithPhoneAPIView(APIView):
                 'phone': user.phone,
                 'full_name': user.full_name,
                 "role": user.role,
+                'user': {
+                    'id': user.id,
+                    'phone': user.phone,
+                    'full_name': user.full_name,
+                    'email': user.email,
+                    'role': user.role,
+                },
                 'message': '✅ Tizimga muvaffaqiyatli kirildi!'
             })
 
@@ -128,12 +135,7 @@ class FaceLoginAPIView(APIView):
         # Faqat 1 ta rasm qabul qilamiz
         phone = request.data.get("phone")
         image_base64 = request.data.get("image_base64")
-        
-        if not phone:
-            return Response(
-                {"error": "Telefon raqam yuborilmadi"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        liveness_required = request.data.get("liveness", True)
 
         if not image_base64:
             return Response(
@@ -142,36 +144,14 @@ class FaceLoginAPIView(APIView):
             )
 
         try:
+            # Rasmni qayta ishlash
             try:
-                user = User.objects.get(phone=phone)
-            except User.DoesNotExist:
+                img = self.base64_to_image(image_base64)
+            except Exception:
                 return Response(
-                    {"error": "Foydalanuvchi topilmadi"},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            if user.role != 'customer':
-                return Response(
-                    {"error": "Ushbu login faqat mijozlar uchun"},
-                    status=status.HTTP_403_FORBIDDEN
-                )
-
-            try:
-                customer = user.customer_profile
-            except Customer.DoesNotExist:
-                return Response(
-                    {"error": "Mijoz profili topilmadi"},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            if not customer.face_encoding:
-                return Response(
-                    {"error": "Mijoz uchun yuz ma'lumoti mavjud emas"},
+                    {"error": "Rasmni o'qib bo'lmadi. Base64 formatni tekshiring."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
-            # Rasmni qayta ishlash
-            img = self.base64_to_image(image_base64)
             
             # 1. Yuzni aniqlash
             face_locations = face_recognition.face_locations(img)
@@ -181,7 +161,8 @@ class FaceLoginAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # 2. Yuz encodinglarini olish
+            # 2. Yuz encodinglarini olish (eng katta yuzni olamiz)
+            face_locations = [self.pick_largest_face(face_locations)]
             face_encodings = face_recognition.face_encodings(img, face_locations)
             if not face_encodings:
                 return Response(
@@ -192,18 +173,55 @@ class FaceLoginAPIView(APIView):
             unknown_encoding = face_encodings[0]
             
             # 3. Liveness tekshiruvi (oddiy versiya)
-            if not self.check_liveness(img):
+            if liveness_required and not self.check_liveness(img):
                 return Response(
                     {"error": "Hayotiy belgilar aniqlanmadi"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # 4. Faqat shu foydalanuvchining yuzini tekshirish
-            if not self.is_same_user_face(unknown_encoding, customer):
-                return Response(
-                    {"error": "Yuz mos kelmadi"},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
+            # 4. Foydalanuvchini aniqlash: telefon bo'lsa shu user, bo'lmasa face bo'yicha qidiramiz
+            if phone:
+                try:
+                    user = User.objects.get(phone=phone)
+                except User.DoesNotExist:
+                    return Response(
+                        {"error": "Foydalanuvchi topilmadi"},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+
+                if user.role != 'customer':
+                    return Response(
+                        {"error": "Ushbu login faqat mijozlar uchun"},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+
+                try:
+                    customer = user.customer_profile
+                except Customer.DoesNotExist:
+                    return Response(
+                        {"error": "Mijoz profili topilmadi"},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+
+                if not customer.face_encoding:
+                    return Response(
+                        {"error": "Mijoz uchun yuz ma'lumoti mavjud emas"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                if not self.is_same_user_face(unknown_encoding, customer):
+                    return Response(
+                        {"error": "Yuz mos kelmadi"},
+                        status=status.HTTP_401_UNAUTHORIZED
+                    )
+            else:
+                customer = self.find_best_match(unknown_encoding)
+                if not customer:
+                    return Response(
+                        {"error": "Yuz mos kelmadi"},
+                        status=status.HTTP_401_UNAUTHORIZED
+                    )
+                user = customer.user
             
             # 5. Login qilish va JWT token yaratish
             login(request, user)
@@ -233,14 +251,19 @@ class FaceLoginAPIView(APIView):
         if "base64," in image_base64:
             image_base64 = image_base64.split("base64,")[1]
         image_base64 = re.sub(r'\s+', '', image_base64)
+        missing_padding = len(image_base64) % 4
+        if missing_padding:
+            image_base64 += "=" * (4 - missing_padding)
         image_data = base64.b64decode(image_base64)
         image = Image.open(io.BytesIO(image_data))
-        return np.array(image.convert("RGB"))
+        return np.ascontiguousarray(image.convert("RGB"))
 
     def check_liveness(self, image):
         """Oddiy liveness tekshiruvi"""
         # 1. Yuz joylashuvi va o'lchami
         face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        if face_cascade.empty():
+            return True
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         faces = face_cascade.detectMultiScale(gray, 1.1, 4)
         
@@ -249,9 +272,11 @@ class FaceLoginAPIView(APIView):
         
         # 2. Ko'zlar mavjudligi
         eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+        if eye_cascade.empty():
+            return True
         eyes = eye_cascade.detectMultiScale(gray, 1.1, 4)
         
-        if len(eyes) < 2:
+        if len(eyes) < 1:
             return False
         
         # 3. Yuz teksturasi analizi (oddiy versiya)
@@ -261,13 +286,57 @@ class FaceLoginAPIView(APIView):
     def is_same_user_face(self, unknown_encoding, customer):
         """Faqat berilgan mijozning yuzini tekshiradi"""
         try:
-            known_encoding = np.array(json.loads(customer.face_encoding))
+            known_encoding = self.parse_face_encoding(customer.face_encoding)
+            if known_encoding is None:
+                return False
             distance = face_recognition.face_distance([known_encoding], unknown_encoding)[0]
             # 0.6 - standart masofa, loyihangizga qarab o'zgartirishingiz mumkin
             return distance < 0.6
         except Exception as e:
             print(f"Xato customer {customer.id}: {str(e)}")
             return False
+
+    def parse_face_encoding(self, value):
+        if value is None:
+            return None
+        if isinstance(value, (list, tuple, np.ndarray)):
+            return np.array(value, dtype=np.float32)
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return None
+            try:
+                decoded = json.loads(text)
+            except Exception:
+                return None
+            return np.array(decoded, dtype=np.float32)
+        return None
+
+    def pick_largest_face(self, face_locations):
+        # face_locations: [(top, right, bottom, left), ...]
+        def area(loc):
+            top, right, bottom, left = loc
+            return max(0, bottom - top) * max(0, right - left)
+        return max(face_locations, key=area)
+
+    def find_best_match(self, unknown_encoding):
+        best_customer = None
+        best_distance = 1.0
+        customers = Customer.objects.select_related("user").exclude(face_encoding__isnull=True).exclude(face_encoding="")
+        for customer in customers:
+            known_encoding = self.parse_face_encoding(customer.face_encoding)
+            if known_encoding is None:
+                continue
+            try:
+                distance = face_recognition.face_distance([known_encoding], unknown_encoding)[0]
+            except Exception:
+                continue
+            if distance < best_distance:
+                best_distance = distance
+                best_customer = customer
+        if best_customer and best_distance < 0.6:
+            return best_customer
+        return None
 
 
 
