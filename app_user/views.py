@@ -76,13 +76,6 @@ class LoginWithPhoneAPIView(APIView):
                 'phone': user.phone,
                 'full_name': user.full_name,
                 "role": user.role,
-                'user': {
-                    'id': user.id,
-                    'phone': user.phone,
-                    'full_name': user.full_name,
-                    'email': user.email,
-                    'role': user.role,
-                },
                 'message': '✅ Tizimga muvaffaqiyatli kirildi!'
             })
 
@@ -136,6 +129,10 @@ class FaceLoginAPIView(APIView):
         phone = request.data.get("phone")
         image_base64 = request.data.get("image_base64")
         liveness_required = request.data.get("liveness", True)
+        if isinstance(phone, str):
+            phone = phone.strip() or None
+        if isinstance(liveness_required, str):
+            liveness_required = liveness_required.strip().lower() not in ("false", "0", "no")
 
         if not image_base64:
             return Response(
@@ -237,6 +234,13 @@ class FaceLoginAPIView(APIView):
                 'phone': user.phone,
                 'full_name': user.full_name,
                 "role": user.role,
+                'user': {
+                    'id': user.id,
+                    'phone': user.phone,
+                    'full_name': user.full_name,
+                    'email': user.email,
+                    'role': user.role,
+                },
                 'message': '✅ Tizimga muvaffaqiyatli kirildi!'
             }, status=status.HTTP_200_OK)
             
